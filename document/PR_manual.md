@@ -2,7 +2,7 @@
 ## 브렌치 종류
 아래 branch 이외에 필요한 branch를 추가할 수도 있습니다.
 
-### master branch:
+### main branch:
  - develop branch에서 리더보드 점수나 소스코드에 큰 변화가 생겨, 다른브 렌치들도 follow up이 필요할 시 업데이트합니다.
  - 피어세션에서 업데이트하며 아래 명령어를 사용합니다. 협의 하에 rebase를 사용할 수도 있습니다.
  ```commandLine
@@ -10,8 +10,8 @@
  git merge develop
  git push origin master
  ```
- - master branch가 업데이트될 때, 다른 브렌치들도 master branch를 merge해 follow up합니다. (optional)
- - 결과가 제출된 master branch는 모델과 성능지표를 포함한 tag를 붙입니다.
+ - main branch가 업데이트될 때, 다른 브렌치들도 main branch를 merge해 follow up합니다. (optional)
+ - 결과가 제출된 main branch는 모델과 성능지표를 포함한 tag를 붙입니다.
  
 ### develop branch:
  - 공동으로 사용하는 브렌치입니다. 
@@ -42,8 +42,8 @@ git tag -a ROBERT_PCC90 -m "robert, pcc 90, burketing 사용"
 ## PR하기
 1. 코드를 로컬 저장소의 개인 브렌치에서 수정합니다.
 2. 수정이 성공적으로 완료될 경우, add + commit후, 개인 브렌치를 push 합니다.
-3. 다른 사람들도 써야하는 코드 블럭이 완성될 경우, 목적에 따라 develop branch 또는 exp branch에 PR을 
-4. 왼쪽의 base repository가 공통 저장소의 master이고, 오른쪽의 compare대상이 PR을 보낼 브랜치가 맞는지 잘 확인합니다.
+3. 다른 사람들도 써야하는 코드 블럭이 완성될 경우, 목적에 따라 develop branch 또는 exp branch에 PR을 합니다.
+4. 왼쪽의 base repository가 공통 저장소의 main이고, 오른쪽의 compare대상이 PR을 보낼 브랜치가 맞는지 잘 확인합니다.
 5. PR 제목과 commit 메세지를 적절하게 설정합니다.
 6. 동료의 피드백을 받고, PR을 보낸 본인이 직접 merge를 합니다.
   - PR된 상태 : 코드리뷰 진행중인 상태
