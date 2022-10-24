@@ -27,7 +27,14 @@
 - 각자의 이름으로 설정한 브랜치입니다. 다른 사람이 수정할 수 없습니다.
 - reset 또는 revert를 사용해 commit을 취소할 수 있습니다.
 
-# PR 절차
+## tag하기
+- **나중에 사용할수도 있는 중요한 버전**은 tag를 붙입니다.
+아래는 예시입니다.
+```commandLine
+# git tag -a {tag 이름} -m "{설명}"
+git tag -a ROBERT_PCC90 -m "robert, pcc 90, burketing 사용"
+```
+
 ## 세팅하기
 ~~1. 공통 저장소를 자신의 계정으로 fork 받고, fork된 개인 원격 저장소를 clone 한다.~~ **-> fork는 사용 불가**
 1. 원격 저장소를 git clone 합니다.
@@ -53,11 +60,11 @@ git push -u origin develop
 
 # 기타
 ## tag하기
-- **나중에 사용할수도 있는 중요한 버전**은 tag를 붙입니다.
+- **나중에 참고할 수도 있는 중요한 버전**은 tag를 붙입니다.
 아래는 예시입니다.
 ```commandLine
 # git tag -a {tag 이름} -m "{설명}"
-git tag -a ROBERT_PCC90 -m "robert, pcc 90, burketing 사용"
+git tag -a main_ROBERT_PCC90 -m "robert, pcc 90, burketing 사용"
 ```
 
 ## revert하기
