@@ -3,7 +3,7 @@
 아래 branch 이외에 필요한 branch를 추가할 수도 있습니다.
 
 ### main branch:
- - develop branch에서 리더보드 점수나 소스코드에 큰 변화가 생겨, 다른브 렌치들도 follow up이 필요할 시 업데이트합니다.
+ - develop branch에서 리더보드 점수나 소스코드에 큰 변화가 생겨, 다른 브렌치들도 follow up이 필요할 시 업데이트합니다.
  - 피어세션에서 업데이트하며 아래 명령어를 사용합니다. 협의 하에 rebase를 사용할 수도 있습니다.
  ```commandLine
  git checkout master
@@ -26,11 +26,11 @@
 - 각자의 이름으로 설정한 브렌치입니다. 다른 사람이 수정할 수 없습니다.
 
 ## tag하기
-- **나중에 사용할수도 있는 중요한 버전**은 tag를 붙입니다.
+- **나중에 참고할 수도 있는 중요한 버전**은 tag를 붙입니다.
 아래는 예시입니다.
 ```commandLine
 # git tag -a {tag 이름} -m "{설명}"
-git tag -a ROBERT_PCC90 -m "robert, pcc 90, burketing 사용"
+git tag -a main_ROBERT_PCC90 -m "robert, pcc 90, burketing 사용"
 ```
 
 ## 세팅하기
