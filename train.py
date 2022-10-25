@@ -26,14 +26,10 @@ def main(config):
     print("training on", device)
 
     if not config["test_mode"]:
-        run = wandb.init(project="sentence_bert", entity="intrandom5", config=config, name=config['log_name'], notes=config['notes'])
+        run = wandb.init(project="sentence_bert", entity="nlp-13", config=config, name=config['log_name'], notes=config['notes'])
 
-    train_datasets = KorSTSDatasets(config['train_x_dir'], config['train_y_dir'])
-    valid_datasets = KorSTSDatasets(config['valid_x_dir'], config['valid_y_dir'])
-    print(f"train_x dataset: {config['train_x_dir']}")
-    print(f"train_y dataset: {config['train_y_dir']}")
-    print(f"valid_x dataset: {config['valid_x_dir']}")
-    print(f"valid_y dataset: {config['valid_y_dir']}")
+    train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'])
+    valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'])
 
     # train_seq_lengths = [(len(s1), len(s2)) for (s1, s2) in train_datasets.x]
     # train_sampler = bucket_pair_indices(train_seq_lengths, batch_size=config['batch_size'], max_pad_len=10)
