@@ -1,8 +1,10 @@
 from torch.utils.data import Dataset
 import torch
 import numpy as np
+import pandas as pd
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
+from transformers import AutoTokenizer
 
 from collections import defaultdict
 from typing import List, Tuple
@@ -10,16 +12,18 @@ import random
 
 
 class KorSTSDatasets(Dataset):
-    def __init__(self, dir_x, dir_y):
-        self.x = np.load(dir_x, allow_pickle=True)
-        self.y = np.load(dir_y, allow_pickle=True)
+    def __init__(self, dir, model_name):
+        tsv = pd.read_csv(dir)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.s1 = [tokenizer.encode(s1) for s1 in tsv["sentence_1"]]
+        self.s2 = [tokenizer.encode(s2) for s2 in tsv["sentence_2"]]
+        self.y = tsv["label"]
 
     def __len__(self):
         return len(self.y)
 
     def __getitem__(self, idx):
-        sentence1, sentence2 = self.x[idx]
-        data = torch.IntTensor(sentence1), torch.IntTensor(sentence2)
+        data = torch.IntTensor(self.s1[idx]), torch.IntTensor(self.s2[idx])
         # cosine similarity의 범위 [-1. ~ 1.] 사이 값으로 정규화 필요.
         # label = float(self.y[idx]) * 0.4 - 1
         

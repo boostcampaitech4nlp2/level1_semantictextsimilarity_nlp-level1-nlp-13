@@ -31,12 +31,8 @@ def main(config):
     if not config["test_mode"]:
         run = wandb.init(project="sentence_bert", entity="nlp-13", config=config, name=config['log_name'], notes=config['notes'])
 
-    train_datasets = KorSTSDatasets(config['train_x_dir'], config['train_y_dir'])
-    valid_datasets = KorSTSDatasets(config['valid_x_dir'], config['valid_y_dir'])
-    print(f"train_x dataset: {config['train_x_dir']}")
-    print(f"train_y dataset: {config['train_y_dir']}")
-    print(f"valid_x dataset: {config['valid_x_dir']}")
-    print(f"valid_y dataset: {config['valid_y_dir']}")
+    train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'])
+    valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'])
 
     # get pad_token_id.
     pad_id = AutoTokenizer.from_pretrained(config["base_model"]).pad_token_id
