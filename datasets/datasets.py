@@ -26,21 +26,25 @@ class KorSTSDatasets(Dataset):
         label = float(self.y[idx])
         return data, label
 
-def KorSTS_collate_fn(batch):
-    # batch = list([((s1, s2), label), ((s1, s2), label), ...])
-    s1_batches = []
-    s2_batches = []
-    labels = []
-    for b in batch:
-        data, label = b
-        s1, s2 = data
-        s1_batches.append(s1)
-        s2_batches.append(s2)
-        labels.append(label)
-        
-    s1_batch = pad_sequence(s1_batches, batch_first=True, padding_value=0)
-    s2_batch = pad_sequence(s2_batches, batch_first=True, padding_value=0)
-    return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels)
+class Collate_fn(object):
+    def __init__(self, pad_id=0):
+        self.pad_id = pad_id
+    
+    def __call__(self, batch):
+        # batch = list([((s1, s2), label), ((s1, s2), label), ...])
+        s1_batches = []
+        s2_batches = []
+        labels = []
+        for b in batch:
+            data, label = b
+            s1, s2 = data
+            s1_batches.append(s1)
+            s2_batches.append(s2)
+            labels.append(label)
+            
+        s1_batch = pad_sequence(s1_batches, batch_first=True, padding_value=self.pad_id)
+        s2_batch = pad_sequence(s2_batches, batch_first=True, padding_value=self.pad_id)
+        return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels)
 
 def bucket_pair_indices(
     sentence_length: List[Tuple[int, int]],
