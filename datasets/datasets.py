@@ -18,6 +18,7 @@ class KorSTSDatasets(Dataset):
         self.s1 = [tokenizer.encode(s1) for s1 in tsv["sentence_1"]]
         self.s2 = [tokenizer.encode(s2) for s2 in tsv["sentence_2"]]
         self.y = tsv["label"]
+        self.pad_id = tokenizer.pad_token_id
 
     def __len__(self):
         return len(self.y)

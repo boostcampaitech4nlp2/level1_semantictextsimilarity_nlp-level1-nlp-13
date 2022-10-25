@@ -35,7 +35,7 @@ def main(config):
     valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'])
 
     # get pad_token_id.
-    pad_id = AutoTokenizer.from_pretrained(config["base_model"]).pad_token_id
+    pad_id = train_datasets.pad_id
     collate_fn = Collate_fn(pad_id)
 
     # pair-bucket sampler
