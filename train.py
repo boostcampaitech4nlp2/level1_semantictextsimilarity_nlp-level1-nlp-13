@@ -74,6 +74,8 @@ def main(config):
 
     pbar = tqdm(range(epochs))
 
+    best_val_loss = None
+
     for epoch in pbar:
         for iter, data in enumerate(tqdm(train_loader)):
             s1, s2, label = data
@@ -104,11 +106,12 @@ def main(config):
                 loss = criterion(logits.squeeze(-1), label)
                 val_loss += loss.detach().item()
         val_loss = val_loss/i
+        if not best_val_loss or val_loss < best_val_loss:
+            torch.save(model.state_dict(), config["model_save_path"])
+            best_val_loss = val_loss
         if not config["test_mode"]:
             wandb.log({"valid_loss": val_loss, "epoch": epoch})
         pbar.set_postfix({"valid_loss": val_loss, "epoch": epoch})
-        
-    torch.save(model.state_dict(), config["model_save_path"])
 
 
 if __name__ == "__main__":
