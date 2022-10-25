@@ -9,14 +9,17 @@ from tqdm import tqdm
 import numpy as np
 import os
 from set_seed import set_seed
+from transformers import AutoTokenizer
 
-from models import SBERT_with_KLUE_BERT, SBERT_with_ROBERTA_LARGE, SBERT_with_KOELECTRA_BASE
-from datasets import KorSTSDatasets, KorSTS_collate_fn, bucket_pair_indices
+from models import *
+from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices
 
-models = {"klue/bert-base": SBERT_with_KLUE_BERT, "klue/roberta-large": SBERT_with_ROBERTA_LARGE, 
+models = {"klue/bert-base": SBERT_with_KLUE_BERT, 
+        "klue/roberta-large": SBERT_with_ROBERTA_LARGE, 
         "monologg/koelectra-base-discriminator": SBERT_with_KOELECTRA_BASE,
         "monologg/koelectra-base-v2-discriminator": SBERT_with_KOELECTRA_BASE,
         "monologg/koelectra-base-v3-discriminator": SBERT_with_KOELECTRA_BASE,
+        "monologg/kobert": SBERT_with_KoBERT,
         }
 
 
@@ -28,26 +31,27 @@ def main(config):
     if not config["test_mode"]:
         run = wandb.init(project="sentence_bert", entity="nlp-13", config=config, name=config['log_name'], notes=config['notes'])
 
-    train_datasets = KorSTSDatasets(config['train_x_dir'], config['train_y_dir'], True)
-    valid_datasets = KorSTSDatasets(config['valid_x_dir'], config['valid_y_dir'])
-    print(f"train_x dataset: {config['train_x_dir']}")
-    print(f"train_y dataset: {config['train_y_dir']}")
-    print(f"valid_x dataset: {config['valid_x_dir']}")
-    print(f"valid_y dataset: {config['valid_y_dir']}")
+    train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'])
+    valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'])
 
+    # get pad_token_id.
+    pad_id = train_datasets.pad_id
+    collate_fn = Collate_fn(pad_id)
+
+    # pair-bucket sampler
     # train_seq_lengths = [(len(s1), len(s2)) for (s1, s2) in train_datasets.x]
     # train_sampler = bucket_pair_indices(train_seq_lengths, batch_size=config['batch_size'], max_pad_len=10)
 
     train_loader = DataLoader(
         train_datasets, 
-        collate_fn=KorSTS_collate_fn, 
+        collate_fn=collate_fn, 
         shuffle=True,
         batch_size=config['batch_size'],
         # batch_sampler=train_sampler
     )
     valid_loader = DataLoader(
         valid_datasets,
-        collate_fn=KorSTS_collate_fn,
+        collate_fn=collate_fn,
         batch_size=config['batch_size']
     )
 

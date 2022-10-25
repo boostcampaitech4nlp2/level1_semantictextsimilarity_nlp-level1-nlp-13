@@ -5,3 +5,4 @@ wandb
 __pycache__
 results
 *.ipynb
+sbert_config.yaml

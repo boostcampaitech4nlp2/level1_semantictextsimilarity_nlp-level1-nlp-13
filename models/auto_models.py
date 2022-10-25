@@ -75,3 +75,20 @@ class SBERT_with_KOELECTRA_BASE(nn.Module):
         # outputs = self.similarity(u, v)
 
         return outputs
+
+class SBERT_with_KoBERT(nn.Module):
+    def __init__(self):
+        super(SBERT_with_KoBERT, self).__init__()
+        self.bert = AutoModel.from_pretrained("monologg/kobert")
+        self.linear = nn.Linear(768*2, 1)
+        self.similarity = nn.CosineSimilarity(dim=-1)
+
+    def forward(self, src_ids, tgt_ids):
+        u = self.bert(src_ids).last_hidden_state
+        v = self.bert(tgt_ids).last_hidden_state
+        u = torch.mean(u, dim=1)
+        v = torch.mean(v, dim=1)
+        attn_outputs = torch.cat((u, v), dim=-1)
+        outputs = self.linear(attn_outputs)
+
+        return outputs
