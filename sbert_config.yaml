@@ -1,5 +1,6 @@
-# klue/bert-base, klue/roberta-large, monologg/koelectra-base-discriminator, 
-# monologg/koelectra-base-v2-discriminator, monologg/koelectra-base-v3-discriminator
+# klue/bert-base, klue/roberta-large
+# monologg/koelectra-base-discriminator, monologg/koelectra-base-v2-discriminator, monologg/koelectra-base-v3-discriminator
+# monologg/kobert
 test_mode: False
 
 base_model: "klue/bert-base"
@@ -12,12 +13,12 @@ train_y_dir: "NLP_dataset/klue/bert-base/train_y.npy" # train 라벨 데이터 �
 valid_x_dir: "NLP_dataset/klue/bert-base/valid_x.npy" # valid 문장 데이터 저장 경로
 valid_y_dir: "NLP_dataset/klue/bert-base/valid_y.npy" # valid 라벨 데이터 저장 경로
 
-epochs: 1
+epochs: 10
 batch_size: 64
 lr: .1e-7
 
-log_name: "note test" # wandb에 logging할 이름.
+log_name: "exp1 test" # wandb에 logging할 이름.
 model_load_path: None # 학습을 이어서 하고자 할 때 경로 지정.
-model_save_path: "results/tt.pt" # 학습 완료된 모델을 해당 경로에 저장.(아직 best model 저장 등은 구현 안됨.)
+model_save_path: "results/bi_pair.pt" # 학습 완료된 모델을 해당 경로에 저장.(아직 best model 저장 등은 구현 안됨.)
 
-notes: "Test"
+notes: "데이터 쌍 바꿔서 학습 : klue/bert-base. seed를 16으로 바꿈."
