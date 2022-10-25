@@ -11,7 +11,7 @@ import os
 from set_seed import set_seed
 from transformers import AutoTokenizer
 
-from models import SBERT_with_KLUE_BERT, SBERT_with_ROBERTA_LARGE, SBERT_with_KOELECTRA_BASE
+from models import *
 from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices
 
 models = {"klue/bert-base": SBERT_with_KLUE_BERT, 
@@ -19,6 +19,7 @@ models = {"klue/bert-base": SBERT_with_KLUE_BERT,
         "monologg/koelectra-base-discriminator": SBERT_with_KOELECTRA_BASE,
         "monologg/koelectra-base-v2-discriminator": SBERT_with_KOELECTRA_BASE,
         "monologg/koelectra-base-v3-discriminator": SBERT_with_KOELECTRA_BASE,
+        "monologg/kobert": SBERT_with_KoBERT,
         }
 
 
