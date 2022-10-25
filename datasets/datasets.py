@@ -10,9 +10,16 @@ import random
 
 
 class KorSTSDatasets(Dataset):
-    def __init__(self, dir_x, dir_y):
+    def __init__(self, dir_x: str, dir_y: str, bi_directional_training: bool=False):
         self.x = np.load(dir_x, allow_pickle=True)
         self.y = np.load(dir_y, allow_pickle=True)
+
+        if bi_directional_training:
+            bi_x = list(self.x)
+            for (s1, s2) in self.x:
+                bi_x.append((s2, s1))
+            self.x = bi_x
+            self.y = np.concatenate((self.y, self.y))
 
     def __len__(self):
         return len(self.y)
