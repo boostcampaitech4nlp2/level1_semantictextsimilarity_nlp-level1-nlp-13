@@ -11,16 +11,8 @@ import os
 from set_seed import set_seed
 from transformers import AutoTokenizer
 
-from models import *
+from models import SBERT_base_Model
 from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices
-
-models = {"klue/bert-base": SBERT_with_KLUE_BERT, 
-        "klue/roberta-large": SBERT_with_ROBERTA_LARGE, 
-        "monologg/koelectra-base-discriminator": SBERT_with_KOELECTRA_BASE,
-        "monologg/koelectra-base-v2-discriminator": SBERT_with_KOELECTRA_BASE,
-        "monologg/koelectra-base-v3-discriminator": SBERT_with_KOELECTRA_BASE,
-        "monologg/kobert": SBERT_with_KoBERT,
-        }
 
 
 def main(config):
@@ -55,10 +47,7 @@ def main(config):
         batch_size=config['batch_size']
     )
 
-    if config['base_model'].startswith("monologg/koelectra"):
-        model = models[config['base_model']](version=config["base_model"].split("-")[2])
-    else:
-        model = models[config['base_model']]()
+    model = SBERT_base_Model(config["base_model"])
         
     print("Base model is", config['base_model'])
     if os.path.exists(config["model_load_path"]):
