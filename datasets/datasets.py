@@ -12,13 +12,21 @@ import random
 
 
 class KorSTSDatasets(Dataset):
-    def __init__(self, dir, model_name):
+    def __init__(self, dir, model_name, bi_directional_training: bool = False):
         tsv = pd.read_csv(dir)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
+        print("encoding sentence...")
         self.s1 = [tokenizer.encode(s1) for s1 in tsv["sentence_1"]]
         self.s2 = [tokenizer.encode(s2) for s2 in tsv["sentence_2"]]
         self.y = tsv["label"]
         self.pad_id = tokenizer.pad_token_id
+        print("Done!")
+        if bi_directional_training:
+            print("data augmenting...")
+            self.s1 += self.s2
+            self.s2 += self.s1
+            self.y = np.concatenate((self.y, self.y))
+            print("Done!")
 
     def __len__(self):
         return len(self.y)

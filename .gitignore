@@ -4,4 +4,5 @@ wandb
 .ipynb_checkpoints
 __pycache__
 results
+*.ipynb
 sbert_config.yaml

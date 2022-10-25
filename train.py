@@ -31,7 +31,9 @@ def main(config):
     if not config["test_mode"]:
         run = wandb.init(project="sentence_bert", entity="nlp-13", config=config, name=config['log_name'], notes=config['notes'])
 
-    train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'])
+    print("Training set")
+    train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'], True)
+    print("Validation set")
     valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'])
 
     # get pad_token_id.
