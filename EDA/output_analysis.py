@@ -1,14 +1,24 @@
 from transformers import AutoTokenizer
+from pathlib import Path
 import pandas as pd
 # TODO : Tokenizer를 Dataset에 의존적으로 설정.
 
+
 class OutputEDA():
     def __init__(self, model_name):
+        self.remove_lastfiles()
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.s1 = []
         self.s2 = []
         self.label = []
         self.pred = []
+    
+    def remove_lastfiles(self):
+        for f in Path('EDA/output').glob('*.csv'):
+            try:
+                f.unlink()
+            except OSError as e:
+                print(f"Error:{ e.strerror}")
     
     def append(self, s1, s2, label, pred): 
         self.s1 += [self.tokenizer.decode(s) for s in s1]
@@ -30,4 +40,3 @@ class OutputEDA():
         self.s2 = []
         self.label = []
         self.pred = []
-        
