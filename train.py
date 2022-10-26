@@ -11,16 +11,8 @@ import os
 from set_seed import set_seed
 from transformers import AutoTokenizer
 
-from models import *
+from models import SBERT_base_Model
 from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices
-
-models = {"klue/bert-base": SBERT_with_KLUE_BERT, 
-        "klue/roberta-large": SBERT_with_ROBERTA_LARGE, 
-        "monologg/koelectra-base-discriminator": SBERT_with_KOELECTRA_BASE,
-        "monologg/koelectra-base-v2-discriminator": SBERT_with_KOELECTRA_BASE,
-        "monologg/koelectra-base-v3-discriminator": SBERT_with_KOELECTRA_BASE,
-        "monologg/kobert": SBERT_with_KoBERT,
-        }
 
 
 def main(config):
@@ -55,10 +47,7 @@ def main(config):
         batch_size=config['batch_size']
     )
 
-    if config['base_model'].startswith("monologg/koelectra"):
-        model = models[config['base_model']](version=config["base_model"].split("-")[2])
-    else:
-        model = models[config['base_model']]()
+    model = SBERT_base_Model(config["base_model"])
         
     print("Base model is", config['base_model'])
     if os.path.exists(config["model_load_path"]):
@@ -73,6 +62,8 @@ def main(config):
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
 
     pbar = tqdm(range(epochs))
+
+    best_val_loss = None
 
     for epoch in pbar:
         for iter, data in enumerate(tqdm(train_loader)):
@@ -96,7 +87,7 @@ def main(config):
         with torch.no_grad():
             for i, data in enumerate(tqdm(valid_loader)):
                 s1, s2, label = data
-                s1 = s2.to(device)
+                s1 = s1.to(device)
                 s2 = s2.to(device)
                 label = label.to(device)
                 
@@ -104,11 +95,12 @@ def main(config):
                 loss = criterion(logits.squeeze(-1), label)
                 val_loss += loss.detach().item()
         val_loss = val_loss/i
+        if not best_val_loss or val_loss < best_val_loss:
+            torch.save(model.state_dict(), config["model_save_path"])
+            best_val_loss = val_loss
         if not config["test_mode"]:
             wandb.log({"valid_loss": val_loss, "epoch": epoch})
         pbar.set_postfix({"valid_loss": val_loss, "epoch": epoch})
-        
-    torch.save(model.state_dict(), config["model_save_path"])
 
 
 if __name__ == "__main__":
