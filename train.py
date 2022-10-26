@@ -13,6 +13,7 @@ from transformers import AutoTokenizer
 
 from models import *
 from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices
+from EDA import OutputEDA
 
 models = {"klue/bert-base": SBERT_with_KLUE_BERT, 
         "klue/roberta-large": SBERT_with_ROBERTA_LARGE, 
@@ -33,7 +34,8 @@ def main(config):
 
     train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'])
     valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'])
-
+    # EDA
+    outputEDA = OutputEDA(config['base_model'])
     # get pad_token_id.
     pad_id = train_datasets.pad_id
     collate_fn = Collate_fn(pad_id)
@@ -80,10 +82,10 @@ def main(config):
             s1 = s1.to(device)
             s2 = s2.to(device)
             label = label.to(device)
-            
             logits = model(s1, s2)
-            loss = criterion(logits.squeeze(-1), label)
-
+            pred = logits.squeeze(-1)
+            loss = criterion(pred, label)
+            outputEDA.append(s1, s2, label, pred)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -91,36 +93,40 @@ def main(config):
             if not config["test_mode"]:
                 wandb.log({"train_loss": loss})
             pbar.set_postfix({"train_loss": loss})
-
+        outputEDA.getEDA(epoch)
         val_loss = 0
         with torch.no_grad():
             for i, data in enumerate(tqdm(valid_loader)):
                 s1, s2, label = data
-                s1 = s2.to(device)
+                s1 = s1.to(device)
                 s2 = s2.to(device)
                 label = label.to(device)
                 
                 logits = model(s1, s2)
-                loss = criterion(logits.squeeze(-1), label)
+                pred = logits.squeeze(-1)
+                loss = criterion(pred, label)
                 val_loss += loss.detach().item()
+
         val_loss = val_loss/i
         if not config["test_mode"]:
             wandb.log({"valid_loss": val_loss, "epoch": epoch})
         pbar.set_postfix({"valid_loss": val_loss, "epoch": epoch})
-        
-    torch.save(model.state_dict(), config["model_save_path"])
 
+    torch.save(model.state_dict(), config["model_save_path"])
+    
 
 if __name__ == "__main__":
+    # 실행 위치 고정
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
     # 결과 재현성을 위한 랜덤 시드 고정.
     set_seed(13)
 
     parser = argparse.ArgumentParser(description='Training SBERT.')
     parser.add_argument("--conf", type=str, default="sbert_config.yaml", help="config file path(.yaml)")
     args = parser.parse_args()
-
     with open(args.conf, "r") as f:
         config = yaml.load(f, Loader=yaml.Loader)
 
     main(config)
     
+print('w')
