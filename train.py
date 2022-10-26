@@ -85,7 +85,7 @@ def main(config):
         with torch.no_grad():
             for i, data in enumerate(tqdm(valid_loader)):
                 s1, s2, label = data
-                s1 = s2.to(device)
+                s1 = s1.to(device)
                 s2 = s2.to(device)
                 label = label.to(device)
                 
