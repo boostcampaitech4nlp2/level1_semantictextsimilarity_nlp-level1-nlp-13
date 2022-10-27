@@ -1,0 +1,8 @@
+NLP_dataset/*
+*/__pycache__
+wandb
+.ipynb_checkpoints
+__pycache__
+results
+sbert_config.yaml
+EDA/output/*
