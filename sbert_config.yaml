@@ -4,6 +4,7 @@
 test_mode: False
 
 base_model: "klue/bert-base"
+model_type: "BERT"
 
 train_csv: "NLP_dataset/train.csv" # train.csv 경로
 valid_csv: "NLP_dataset/dev.csv"   # valid.csv 경로
@@ -15,10 +16,12 @@ valid_y_dir: "NLP_dataset/klue/bert-base/valid_y.npy" # valid 라벨 데이터 �
 
 epochs: 10
 batch_size: 64
-lr: .1e-7
+lr: .1e-4
 
-log_name: "hwchoi" # wandb에 logging할 이름.
+log_name: "klue/roberta-large" # wandb에 logging할 이름.
 model_load_path: None # 학습을 이어서 하고자 할 때 경로 지정.
-model_save_path: "results/bi_pair.pt" # 학습 완료된 모델을 해당 경로에 저장.(아직 best model 저장 등은 구현 안됨.)
+model_save_path: "results/tt.pt" # 학습 완료된 모델을 해당 경로에 저장.(아직 best model 저장 등은 구현 안됨.)
 
-notes: "데이터 쌍 바꿔서 학습 : klue/bert-base. seed를 16으로 바꿈."
+notes: "Auto_Model test."
+
+notes: "직접 구현한 PyTorch에서 학습 결과"
