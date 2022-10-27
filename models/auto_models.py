@@ -1,4 +1,4 @@
-from transformers import AutoModel, BertForSequenceClassification
+from transformers import AutoModel, BertForSequenceClassification, BertForMaskedLM
 import torch.nn as nn
 import torch
 
@@ -32,3 +32,15 @@ class BERT_base_Model(nn.Module):
         outputs = self.bert(src_ids)
 
         return outputs.logits
+
+class MLM_Model(nn.Module):
+    def __init__(self, model_name):
+        super(MLM_Model, self).__init__()
+        self.bert = BertForMaskedLM.from_pretrained(model_name)
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, src_ids):
+        attn_outputs = self.bert(src_ids)
+        outputs = self.softmax(attn_outputs.logits)
+        
+        return outputs

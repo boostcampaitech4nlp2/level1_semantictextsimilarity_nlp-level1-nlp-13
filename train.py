@@ -34,7 +34,6 @@ def main(config):
     else:
         print("Model type should be 'BERT' or 'SBERT'!")
         return
-    outputEDA = OutputEDA(config['base_model'])
 
     # get pad_token_id.
     collate_fn = Collate_fn(train_datasets.pad_id, config["model_type"])
@@ -93,7 +92,6 @@ def main(config):
                 logits = model(s1)
             loss = criterion(logits.squeeze(-1), label)
             pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
-            outputEDA.append(s1, s2, label, pred)
 
             optimizer.zero_grad()
             loss.backward()
@@ -102,7 +100,6 @@ def main(config):
             if not config["test_mode"]:
                 wandb.log({"train_loss": loss, "train_pearson": pearson})
             pbar.set_postfix({"train_loss": loss})
-        outputEDA.getEDA(epoch)
         val_loss = 0
         val_pearson = 0
         with torch.no_grad():
