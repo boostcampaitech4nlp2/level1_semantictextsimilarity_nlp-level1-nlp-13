@@ -125,8 +125,6 @@ def main(config):
             val_pearson /= i
             if val_pearson > best_pearson:
                 torch.save(model.state_dict(), config["model_save_path"])
-    # print("final model saved to", config["model_save_path"])
-    # torch.save(model.state_dict(), config["model_save_path"])
 
 
 if __name__ == "__main__":

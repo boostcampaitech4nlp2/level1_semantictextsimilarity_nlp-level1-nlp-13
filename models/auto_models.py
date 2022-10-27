@@ -29,9 +29,6 @@ class BERT_base_Model(nn.Module):
         self.similarity = nn.CosineSimilarity(dim=-1)
 
     def forward(self, src_ids):
-        # attn_outputs = self.bert(src_ids).last_hidden_state
-        # pooler_outputs = torch.mean(attn_outputs, dim=1)
-        # outputs = self.linear(pooler_outputs)
         outputs = self.bert(src_ids)
 
         return outputs.logits
