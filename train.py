@@ -14,6 +14,7 @@ import torchmetrics
 
 from models import SBERT_base_Model, BERT_base_Model
 from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT
+from EDA import OutputEDA
 
 
 def main(config):
@@ -33,6 +34,7 @@ def main(config):
     else:
         print("Model type should be 'BERT' or 'SBERT'!")
         return
+    outputEDA = OutputEDA(config['base_model'])
 
     # get pad_token_id.
     collate_fn = Collate_fn(train_datasets.pad_id, config["model_type"])
@@ -91,6 +93,7 @@ def main(config):
                 logits = model(s1)
             loss = criterion(logits.squeeze(-1), label)
             pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
+            outputEDA.append(s1, s2, label, pred)
 
             optimizer.zero_grad()
             loss.backward()
@@ -99,7 +102,7 @@ def main(config):
             if not config["test_mode"]:
                 wandb.log({"train_loss": loss, "train_pearson": pearson})
             pbar.set_postfix({"train_loss": loss})
-
+        outputEDA.getEDA(epoch)
         val_loss = 0
         val_pearson = 0
         with torch.no_grad():
@@ -126,17 +129,21 @@ def main(config):
             if val_pearson > best_pearson:
                 torch.save(model.state_dict(), config["model_save_path"])
 
+    torch.save(model.state_dict(), config["model_save_path"])
+    
 
 if __name__ == "__main__":
+    # 실행 위치 고정
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
     # 결과 재현성을 위한 랜덤 시드 고정.
     set_seed(13)
 
     parser = argparse.ArgumentParser(description='Training SBERT.')
     parser.add_argument("--conf", type=str, default="sbert_config.yaml", help="config file path(.yaml)")
     args = parser.parse_args()
-
     with open(args.conf, "r") as f:
         config = yaml.load(f, Loader=yaml.Loader)
 
     main(config)
     
+print('w')
