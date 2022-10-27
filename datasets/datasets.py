@@ -13,12 +13,15 @@ import random
 
 class KorSTSDatasets(Dataset):
     def __init__(self, dir, model_name):
+        super(KorSTSDatasets, self).__init__()
         tsv = pd.read_csv(dir)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.s1 = [tokenizer.encode(s1) for s1 in tsv["sentence_1"]]
         self.s2 = [tokenizer.encode(s2) for s2 in tsv["sentence_2"]]
         self.y = tsv["label"]
+
         self.pad_id = tokenizer.pad_token_id
+        self.sep_id = tokenizer.sep_token_id
 
     def __len__(self):
         return len(self.y)
@@ -31,25 +34,47 @@ class KorSTSDatasets(Dataset):
         label = float(self.y[idx])
         return data, label
 
+class KorSTSDatasets_for_BERT(KorSTSDatasets):
+    def __init__(self, dir, model_name):
+        super(KorSTSDatasets_for_BERT, self).__init__(dir, model_name)
+
+    def __getitem__(self, idx):
+        data = self.s1[idx][:-1] + [self.sep_id] + self.s2[idx][1:]
+        data = torch.IntTensor(data)
+        label = float(self.y[idx])
+
+        return data, label
+
 class Collate_fn(object):
-    def __init__(self, pad_id=0):
+    def __init__(self, pad_id=0, model_type="SBERT"):
         self.pad_id = pad_id
+        self.model_type = model_type
     
     def __call__(self, batch):
         # batch = list([((s1, s2), label), ((s1, s2), label), ...])
-        s1_batches = []
-        s2_batches = []
-        labels = []
-        for b in batch:
-            data, label = b
-            s1, s2 = data
-            s1_batches.append(s1)
-            s2_batches.append(s2)
-            labels.append(label)
-            
-        s1_batch = pad_sequence(s1_batches, batch_first=True, padding_value=self.pad_id)
-        s2_batch = pad_sequence(s2_batches, batch_first=True, padding_value=self.pad_id)
-        return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels)
+        if self.model_type == "SBERT":
+            s1_batches = []
+            s2_batches = []
+            labels = []
+            for b in batch:
+                data, label = b
+                s1, s2 = data
+                s1_batches.append(s1)
+                s2_batches.append(s2)
+                labels.append(label)
+                
+            s1_batch = pad_sequence(s1_batches, batch_first=True, padding_value=self.pad_id)
+            s2_batch = pad_sequence(s2_batches, batch_first=True, padding_value=self.pad_id)
+            return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels)
+        else:
+            s1 = []
+            labels = []
+            for b in batch:
+                data, label = b
+                s1.append(data)
+                labels.append(label)
+            s1_batch = pad_sequence(s1, batch_first=True, padding_value=self.pad_id)
+            return s1_batch.long(), torch.FloatTensor(labels)
 
 def bucket_pair_indices(
     sentence_length: List[Tuple[int, int]],

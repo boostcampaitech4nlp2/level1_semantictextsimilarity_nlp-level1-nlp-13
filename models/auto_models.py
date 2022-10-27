@@ -1,4 +1,4 @@
-from transformers import AutoModel
+from transformers import AutoModel, BertForSequenceClassification
 import torch.nn as nn
 import torch
 
@@ -19,3 +19,19 @@ class SBERT_base_Model(nn.Module):
         outputs = self.linear(attn_outputs)
 
         return outputs
+
+
+class BERT_base_Model(nn.Module):
+    def __init__(self, model_name):
+        super(BERT_base_Model, self).__init__()
+        self.bert = BertForSequenceClassification.from_pretrained(model_name, num_labels=1)
+        self.linear = nn.Linear(self.bert.config.hidden_size, 1)
+        self.similarity = nn.CosineSimilarity(dim=-1)
+
+    def forward(self, src_ids):
+        # attn_outputs = self.bert(src_ids).last_hidden_state
+        # pooler_outputs = torch.mean(attn_outputs, dim=1)
+        # outputs = self.linear(pooler_outputs)
+        outputs = self.bert(src_ids)
+
+        return outputs.logits

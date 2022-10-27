@@ -5,4 +5,8 @@ wandb
 __pycache__
 results
 sbert_config.yaml
+<<<<<<< HEAD
 EDA/output/*
+=======
+EDA/output/*
+>>>>>>> develop
