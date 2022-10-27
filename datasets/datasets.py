@@ -109,7 +109,7 @@ class Collate_fn(object):
                 labels.append(y)
             inputs = pad_sequence(inputs, batch_first=True, padding_value=self.pad_id)
             labels = pad_sequence(labels, batch_first=True, padding_value=self.pad_id)
-            return inputs.int(), labels.int()
+            return inputs.long(), labels.long()
 
 def bucket_pair_indices(
     sentence_length: List[Tuple[int, int]],

@@ -12,8 +12,9 @@ from set_seed import set_seed
 from transformers import AutoTokenizer
 import torchmetrics
 
-from models import SBERT_base_Model, BERT_base_Model
-from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT
+from models import SBERT_base_Model, BERT_base_Model, MLM_Model
+from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT, KorSTSDatasets_for_MLM
+from criterion import CrossEntropyLoss
 from EDA import OutputEDA
 
 
@@ -31,8 +32,11 @@ def main(config):
     elif config["model_type"] == "BERT":
         train_datasets = KorSTSDatasets_for_BERT(config['train_csv'], config['base_model'])
         valid_datasets = KorSTSDatasets_for_BERT(config['valid_csv'], config['base_model'])
+    elif config["model_type"] == "MLM":
+        train_datasets = KorSTSDatasets_for_MLM(config["train_csv"], config["base_model"])
+        valid_datasets = KorSTSDatasets_for_MLM(config["train_csv"], config["base_model"])
     else:
-        print("Model type should be 'BERT' or 'SBERT'!")
+        print("Model type should be int ['BERT''SBERT', 'MLM']!")
         return
 
     # get pad_token_id.
@@ -57,8 +61,11 @@ def main(config):
 
     if config["model_type"] == "SBERT":
         model = SBERT_base_Model(config["base_model"])
-    else:
+    elif config["model_type"] == "BERT":
         model = BERT_base_Model(config["base_model"])
+    else:
+        model = MLM_Model(config["base_model"])
+
         
     print("Base model is", config['base_model'])
     if os.path.exists(config["model_load_path"]):
@@ -69,7 +76,10 @@ def main(config):
     model.to(device)
 
     epochs = config['epochs']
-    criterion = nn.L1Loss()
+    if config["model_type"] == "MLM":
+        criterion = CrossEntropyLoss(train_datasets.pad_id)
+    else:
+        criterion = nn.L1Loss()
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
 
     pbar = tqdm(range(epochs))
@@ -77,6 +87,7 @@ def main(config):
     best_val_loss = 1000
     best_pearson = 0
 
+    # training code.
     for epoch in pbar:
         for iter, data in enumerate(tqdm(train_loader)):
             if config["model_type"] == "SBERT":
@@ -85,20 +96,32 @@ def main(config):
                 s2 = s2.to(device)
                 label = label.to(device)
                 logits = model(s1, s2)
+                loss = criterion(logits.squeeze(-1), label)
+                pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
+            elif config["model_type"] == "BERT":
+                s1, label = data
+                s1 = s1.to(device)
+                label = label.to(device)
+                logits = model(s1)
+                loss = criterion(logits.squeeze(-1), label)
+                pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
             else:
                 s1, label = data
                 s1 = s1.to(device)
                 label = label.to(device)
                 logits = model(s1)
-            loss = criterion(logits.squeeze(-1), label)
-            pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
+                loss = criterion(logits, label)
+                ppl = torch.exp(loss)
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             loss = loss.detach().item()
             if not config["test_mode"]:
-                wandb.log({"train_loss": loss, "train_pearson": pearson})
+                if config["model_type"] != "MLM":
+                    wandb.log({"train_loss": loss, "train_pearson": pearson})
+                else:
+                    wandb.log({"train_loss": loss, "train_PPL": ppl})
             pbar.set_postfix({"train_loss": loss})
         val_loss = 0
         val_pearson = 0
@@ -110,21 +133,39 @@ def main(config):
                     s2 = s2.to(device)
                     label = label.to(device)
                     logits = model(s1, s2)
+                    loss = criterion(logits.squeeze(-1), label)
+                    pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
+                    val_pearson += pearson.to(torch.device("cpu")).detach().item()
+                elif config["model_type"] == "BERT":
+                    s1, label = data
+                    s1 = s1.to(device)
+                    label = label.to(device)
+                    logits = model(s1)
+                    loss = criterion(logits.squeeze(-1), label)
+                    pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
+                    val_pearson += pearson.to(torch.device("cpu")).detach().item()
                 else:
                     s1, label = data
                     s1 = s1.to(device)
                     label = label.to(device)
                     logits = model(s1)
-                loss = criterion(logits.squeeze(-1), label)
-                pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
+                    loss = criterion(logits, label)
+                    ppl = torch.exp(loss)
+
                 val_loss += loss.to(torch.device("cpu")).detach().item()
-                val_pearson += pearson.to(torch.device("cpu")).detach().item()
                 if not config["test_mode"]:
-                    wandb.log({"valid loss": loss, "valid_pearson": pearson})
+                    if config["model_type"] != "MLM":
+                        wandb.log({"valid loss": loss, "valid_pearson": pearson})
+                    else:
+                        wandb.log({"valid loss": loss, "valid_PPL": ppl})
             val_loss /= i
             val_pearson /= i
-            if val_pearson > best_pearson:
-                torch.save(model.state_dict(), config["model_save_path"])
+            if config["model_type"] == "MLM":
+                if val_loss < best_val_loss:
+                    torch.save(model.state_dict(), config["model_save_path"])
+            else:
+                if val_pearson > best_pearson:
+                    torch.save(model.state_dict(), config["model_save_path"])
 
     torch.save(model.state_dict(), config["model_save_path"])
     
