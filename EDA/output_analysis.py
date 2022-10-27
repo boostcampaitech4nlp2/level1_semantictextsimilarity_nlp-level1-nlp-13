@@ -5,13 +5,14 @@ import pandas as pd
 
 
 class OutputEDA():
-    def __init__(self, model_name):
+    def __init__(self, model_name, file_header):
         self.remove_lastfiles()
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.s1 = []
         self.s2 = []
         self.label = []
         self.pred = []
+        self.file_header = file_header
     
     def remove_lastfiles(self):
         for f in Path('EDA/output').glob('*.csv'):
@@ -35,7 +36,7 @@ class OutputEDA():
                 'label': self.label,
                 'pred': self.pred}
         output = pd.DataFrame(data)
-        output.to_csv(f'EDA/output/{epoch}.csv')
+        output.to_csv(f'EDA/output/{self.file_header}_{epoch}.csv')
         self.s1 = []
         self.s2 = []
         self.label = []

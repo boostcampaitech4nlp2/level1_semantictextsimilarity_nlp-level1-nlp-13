@@ -27,7 +27,9 @@ def main(config):
     train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'])
     valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'])
     # EDA
-    outputEDA = OutputEDA(config['base_model'])
+    outputEDA_train = OutputEDA(config['base_model'], "train")
+    outputEDA_val = OutputEDA(config['base_model'], "val")
+    
     # get pad_token_id.
     pad_id = train_datasets.pad_id
     collate_fn = Collate_fn(pad_id)
@@ -46,6 +48,7 @@ def main(config):
     valid_loader = DataLoader(
         valid_datasets,
         collate_fn=collate_fn,
+
         batch_size=config['batch_size']
     )
 
@@ -58,9 +61,10 @@ def main(config):
     else:
         print("no pretrained weights provided.")
     model.to(device)
+    
 
     epochs = config['epochs']
-    criterion = nn.MSELoss()
+    criterion = nn.L1Loss()
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
 
     pbar = tqdm(range(epochs))
@@ -76,7 +80,7 @@ def main(config):
             logits = model(s1, s2)
             pred = logits.squeeze(-1)
             loss = criterion(pred, label)
-            outputEDA.append(s1, s2, label, pred)
+            outputEDA_train.append(s1, s2, label, pred)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -84,20 +88,20 @@ def main(config):
             if not config["test_mode"]:
                 wandb.log({"train_loss": loss})
             pbar.set_postfix({"train_loss": loss})
-        outputEDA.getEDA(epoch)
+        outputEDA_train.getEDA(epoch)
         val_loss = 0
         with torch.no_grad():
             for i, data in enumerate(tqdm(valid_loader)):
                 s1, s2, label = data
                 s1 = s1.to(device)
                 s2 = s2.to(device)
-                label = label.to(device)
-                
+                label = label.to(device)        
                 logits = model(s1, s2)
                 pred = logits.squeeze(-1)
+                outputEDA_val.append(s1, s2, label, pred)
                 loss = criterion(pred, label)
                 val_loss += loss.detach().item()
-
+        outputEDA_val.getEDA(epoch)
         val_loss = val_loss/i
         if not best_val_loss or val_loss < best_val_loss:
             torch.save(model.state_dict(), config["model_save_path"])
