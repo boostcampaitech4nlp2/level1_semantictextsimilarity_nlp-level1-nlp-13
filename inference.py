@@ -7,6 +7,7 @@ import yaml
 import argparse
 from tqdm import tqdm
 import numpy as np
+import pandas as pd
 
 
 Datasets = {"SBERT": KorSTSDatasets, "BERT": KorSTSDatasets_for_BERT}
@@ -43,17 +44,15 @@ def main(config):
                 s1 = s1.to(device)
                 s2 = s2.to(device)
                 pred = model(s1, s2).to(torch.device("cpu")).detach().numpy().flatten()
-                pred *= 5
-                pred = round(np.clip(pred, 0, 5), 1)
-                preds.append(pred)
+                preds += list(pred)
             elif config["model_type"] == "BERT":
                 s1, label = data
                 s1 = s1.to(device)
                 pred = model(s1).to(torch.device("cpu")).detach().numpy().flatten()
-                pred = round(np.clip(pred, 0, 5), 1)
-                preds.append(pred)
+                preds += list(pred)
 
     output = pd.read_csv("NLP_dataset/sample_submission.csv")
+    preds = [round(np.clip(p, 0, 5), 1) for p in preds]
     output['target'] = preds
     output.to_csv("output.csv", index=False)
 

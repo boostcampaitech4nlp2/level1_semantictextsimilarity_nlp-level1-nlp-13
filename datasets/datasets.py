@@ -21,13 +21,13 @@ class KorSTSDatasets(Dataset):
         if "label" in tsv.keys():
             self.y = tsv["label"]
         else:
-            None
+            self. y = None
 
         self.pad_id = tokenizer.pad_token_id
         self.sep_id = tokenizer.sep_token_id
 
     def __len__(self):
-        return len(self.y)
+        return len(self.s1)
 
     def __getitem__(self, idx):
         data = torch.IntTensor(self.s1[idx]), torch.IntTensor(self.s2[idx])
@@ -41,7 +41,10 @@ class KorSTSDatasets_for_BERT(KorSTSDatasets):
     def __getitem__(self, idx):
         data = self.s1[idx][:-1] + [self.sep_id] + self.s2[idx][1:]
         data = torch.IntTensor(data)
-        label = float(self.y[idx])
+        if self.y != None:
+            label = float(self.y[idx])
+        else:
+            label = None
 
         return data, label
 
@@ -65,7 +68,10 @@ class Collate_fn(object):
                 
             s1_batch = pad_sequence(s1_batches, batch_first=True, padding_value=self.pad_id)
             s2_batch = pad_sequence(s2_batches, batch_first=True, padding_value=self.pad_id)
-            return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels)
+            if label != None:
+                return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels)
+            else:
+                return s1_batch.long(), s2_batch.long(), None
         else:
             s1 = []
             labels = []
@@ -74,7 +80,10 @@ class Collate_fn(object):
                 s1.append(data)
                 labels.append(label)
             s1_batch = pad_sequence(s1, batch_first=True, padding_value=self.pad_id)
-            return s1_batch.long(), torch.FloatTensor(labels)
+            if label != None:
+                return s1_batch.long(), torch.FloatTensor(labels)
+            else:
+                return s1_batch.long(), None
 
 def bucket_pair_indices(
     sentence_length: List[Tuple[int, int]],
