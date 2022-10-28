@@ -17,6 +17,10 @@ from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSData
 from EDA import OutputEDA
 
 
+Models = {"BERT": BERT_base_Model, "SBERT": SBERT_base_Model}
+Datasets = {"BERT": KorSTSDatasets_for_BERT, "SBERT": KorSTSDatasets_for_BERT}
+Losses = {"MAE": nn.L1Loss, "MSE": nn.MSELoss}
+
 def main(config):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
@@ -25,15 +29,8 @@ def main(config):
     if not config["test_mode"]:
         run = wandb.init(project="sentence_bert", entity="nlp-13", config=config, name=config['log_name'], notes=config['notes'])
 
-    if config["model_type"] == "SBERT":
-        train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'])
-        valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'])
-    elif config["model_type"] == "BERT":
-        train_datasets = KorSTSDatasets_for_BERT(config['train_csv'], config['base_model'])
-        valid_datasets = KorSTSDatasets_for_BERT(config['valid_csv'], config['base_model'])
-    else:
-        print("Model type should be 'BERT' or 'SBERT'!")
-        return
+    train_datasets = Datasets[config["model_type"]](config['train_csv'], config['base_model'])
+    valid_datasets = Datasets[config["model_type"]](config['valid_csv'], config['base_model'])
 
     # get pad_token_id.
     collate_fn = Collate_fn(train_datasets.pad_id, config["model_type"])
@@ -55,10 +52,7 @@ def main(config):
         batch_size=config['batch_size']
     )
 
-    if config["model_type"] == "SBERT":
-        model = SBERT_base_Model(config["base_model"])
-    else:
-        model = BERT_base_Model(config["base_model"])
+    model = Models[config["model_type"]](config["base_model"])
         
     print("Base model is", config['base_model'])
     if os.path.exists(config["model_load_path"]):
@@ -69,11 +63,11 @@ def main(config):
     model.to(device)
 
     epochs = config['epochs']
-    if config["loss"] == "MAE":
-        criterion = nn.L1Loss()
-    elif config["loss"] == "MSE":
-        criterion = nn.MSELoss()
+    criterion = Losses[config["loss"]]()
+
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
+
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
 
     pbar = tqdm(range(epochs))
 
@@ -103,6 +97,8 @@ def main(config):
             if not config["test_mode"]:
                 wandb.log({"train_loss": loss, "train_pearson": pearson})
             pbar.set_postfix({"train_loss": loss})
+        scheduler.step()
+
         val_loss = 0
         val_pearson = 0
         with torch.no_grad():
