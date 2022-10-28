@@ -7,5 +7,5 @@ results
 sbert_config.yaml
 EDA/output/*
 stopwords_ver2.txt
-
+datasets/csv
 *.ipynb
