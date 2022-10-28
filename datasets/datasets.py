@@ -21,7 +21,7 @@ class KorSTSDatasets(Dataset):
         if "label" in tsv.keys():
             self.y = tsv["label"]
         else:
-            self. y = None
+            self.y = None
 
         self.pad_id = tokenizer.pad_token_id
         self.sep_id = tokenizer.sep_token_id
@@ -31,7 +31,10 @@ class KorSTSDatasets(Dataset):
 
     def __getitem__(self, idx):
         data = torch.IntTensor(self.s1[idx]), torch.IntTensor(self.s2[idx])
-        label = float(self.y[idx])/5
+        if self.y == None:
+            label = None
+        else:
+            label = float(self.y[idx])/5
         return data, label
 
 class KorSTSDatasets_for_BERT(KorSTSDatasets):
@@ -41,10 +44,10 @@ class KorSTSDatasets_for_BERT(KorSTSDatasets):
     def __getitem__(self, idx):
         data = self.s1[idx][:-1] + [self.sep_id] + self.s2[idx][1:]
         data = torch.IntTensor(data)
-        if self.y != None:
-            label = float(self.y[idx])
-        else:
+        if self.y == None:
             label = None
+        else:
+            label = float(self.y[idx])
 
         return data, label
 
