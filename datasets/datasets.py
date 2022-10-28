@@ -18,8 +18,21 @@ class KorSTSDatasets(Dataset):
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.s1 = [tokenizer.encode(s1) for s1 in tsv["sentence_1"]]
         self.s2 = [tokenizer.encode(s2) for s2 in tsv["sentence_2"]]
+                
+        rtt_filter = tsv['source'].str.contains('rtt') 
+        self.rtt = pd.Series([0] * len(tsv))
+        self.rtt[rtt_filter] = 1
+        
+        nsmc_filter = tsv['source'].str.contains('nsmc')    
+        petition_filter = tsv['source'].str.contains('petition') 
+        slack_filter = tsv['source'].str.contains('slack') 
+        self.source = pd.Series([0] * len(tsv))
+        self.source[nsmc_filter] = 0
+        self.source[petition_filter] = 1
+        self.source[slack_filter] = 2
+        
         self.y = tsv["label"]
-
+        
         self.pad_id = tokenizer.pad_token_id
         self.sep_id = tokenizer.sep_token_id
 
@@ -30,9 +43,16 @@ class KorSTSDatasets(Dataset):
         data = torch.IntTensor(self.s1[idx]), torch.IntTensor(self.s2[idx])
         # cosine similarity의 범위 [-1. ~ 1.] 사이 값으로 정규화 필요.
         # label = float(self.y[idx]) * 0.4 - 1
-        
         label = float(self.y[idx])
-        return data, label
+        
+        # torch.cat으로 aux만들기 위해 1차원 텐서로 변환
+        rtt = torch.tensor([self.rtt[idx]], dtype=torch.long)
+        source = torch.tensor(self.source[idx], dtype=torch.long)
+        source = torch.nn.functional.one_hot(source, 3)
+        # source + rtt 
+        aux = torch.cat([source, rtt])
+        
+        return data, label, aux
 
 class KorSTSDatasets_for_BERT(KorSTSDatasets):
     def __init__(self, dir, model_name):
@@ -42,8 +62,15 @@ class KorSTSDatasets_for_BERT(KorSTSDatasets):
         data = self.s1[idx][:-1] + [self.sep_id] + self.s2[idx][1:]
         data = torch.IntTensor(data)
         label = float(self.y[idx])
-
-        return data, label
+        
+        # torch.cat으로 aux만들기 위해 1차원 텐서로 변환
+        rtt = torch.tensor([self.rtt[idx]], dtype=torch.long)
+        source = torch.tensor(self.source[idx], dtype=torch.long)
+        source = torch.nn.functional.one_hot(source, 3)
+        # source + rtt 
+        aux = torch.cat([source, rtt])
+        
+        return data, label, aux
 
 class Collate_fn(object):
     def __init__(self, pad_id=0, model_type="SBERT"):
@@ -56,25 +83,31 @@ class Collate_fn(object):
             s1_batches = []
             s2_batches = []
             labels = []
+            auxes = []
             for b in batch:
-                data, label = b
+                data, label, aux = b
                 s1, s2 = data
                 s1_batches.append(s1)
                 s2_batches.append(s2)
                 labels.append(label)
+                auxes.append(aux)
                 
             s1_batch = pad_sequence(s1_batches, batch_first=True, padding_value=self.pad_id)
             s2_batch = pad_sequence(s2_batches, batch_first=True, padding_value=self.pad_id)
-            return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels)
+            return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels), auxes
         else:
             s1 = []
             labels = []
+            auxes = []
             for b in batch:
-                data, label = b
+                data, label, aux = b
                 s1.append(data)
                 labels.append(label)
+                auxes.append(aux)
+                
             s1_batch = pad_sequence(s1, batch_first=True, padding_value=self.pad_id)
-            return s1_batch.long(), torch.FloatTensor(labels)
+            return s1_batch.long(), torch.FloatTensor(labels), auxes
+
 
 def bucket_pair_indices(
     sentence_length: List[Tuple[int, int]],

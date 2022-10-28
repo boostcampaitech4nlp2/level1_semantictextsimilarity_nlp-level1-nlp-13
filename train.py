@@ -12,14 +12,9 @@ from set_seed import set_seed
 from transformers import AutoTokenizer
 import torchmetrics
 
-<<<<<<< HEAD
-from models import SBERT_base_Model
-from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices
-from EDA import OutputEDA
-=======
 from models import SBERT_base_Model, BERT_base_Model
 from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT
->>>>>>> develop
+from EDA import OutputEDA
 
 
 def main(config):
@@ -30,14 +25,6 @@ def main(config):
     if not config["test_mode"]:
         run = wandb.init(project="sentence_bert", entity="nlp-13", config=config, name=config['log_name'], notes=config['notes'])
 
-<<<<<<< HEAD
-    train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'])
-    valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'])
-    # EDA
-    outputEDA_train = OutputEDA(config['base_model'], "train")
-    outputEDA_val = OutputEDA(config['base_model'], "val")
-    
-=======
     if config["model_type"] == "SBERT":
         train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'])
         valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'])
@@ -47,8 +34,8 @@ def main(config):
     else:
         print("Model type should be 'BERT' or 'SBERT'!")
         return
-
->>>>>>> develop
+    # EDA
+    outputEDA = OutputEDA(config['base_model'], config['log_name'])
     # get pad_token_id.
     collate_fn = Collate_fn(train_datasets.pad_id, config["model_type"])
 
@@ -85,7 +72,8 @@ def main(config):
     
 
     epochs = config['epochs']
-    criterion = nn.L1Loss()
+    criterion = nn.MSELoss()
+    
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
 
     pbar = tqdm(range(epochs))
@@ -95,31 +83,25 @@ def main(config):
 
     for epoch in pbar:
         for iter, data in enumerate(tqdm(train_loader)):
-<<<<<<< HEAD
-            s1, s2, label = data
-            s1 = s1.to(device)
-            s2 = s2.to(device)
-            label = label.to(device)
-            logits = model(s1, s2)
-            pred = logits.squeeze(-1)
-            loss = criterion(pred, label)
-            outputEDA_train.append(s1, s2, label, pred)
-=======
+             #TODO : USE aux data [(one hot )]
             if config["model_type"] == "SBERT":
-                s1, s2, label = data
+                s1, s2, label, aux = data
                 s1 = s1.to(device)
                 s2 = s2.to(device)
                 label = label.to(device)
                 logits = model(s1, s2)
+
             else:
-                s1, label = data
+                s1, label, aux = data
                 s1 = s1.to(device)
                 label = label.to(device)
                 logits = model(s1)
-            loss = criterion(logits.squeeze(-1), label)
+                s2 = None
+
+            pred = logits.squeeze(-1)
+            loss = criterion(pred, label)
             pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
 
->>>>>>> develop
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -127,54 +109,42 @@ def main(config):
             if not config["test_mode"]:
                 wandb.log({"train_loss": loss, "train_pearson": pearson})
             pbar.set_postfix({"train_loss": loss})
-        outputEDA_train.getEDA(epoch)
+
         val_loss = 0
         val_pearson = 0
         with torch.no_grad():
             for i, data in enumerate(tqdm(valid_loader)):
-<<<<<<< HEAD
-                s1, s2, label = data
-                s1 = s1.to(device)
-                s2 = s2.to(device)
-                label = label.to(device)        
-                logits = model(s1, s2)
-                pred = logits.squeeze(-1)
-                outputEDA_val.append(s1, s2, label, pred)
-                loss = criterion(pred, label)
-                val_loss += loss.detach().item()
-        outputEDA_val.getEDA(epoch)
-        val_loss = val_loss/i
-        if not best_val_loss or val_loss < best_val_loss:
-            torch.save(model.state_dict(), config["model_save_path"])
-            best_val_loss = val_loss
-        if not config["test_mode"]:
-            wandb.log({"valid_loss": val_loss, "epoch": epoch})
-        pbar.set_postfix({"valid_loss": val_loss, "epoch": epoch})
-=======
                 if config["model_type"] == "SBERT":
-                    s1, s2, label = data
+                    s1, s2, label, aux = data
                     s1 = s1.to(device)
                     s2 = s2.to(device)
                     label = label.to(device)
                     logits = model(s1, s2)
                 else:
-                    s1, label = data
+                    s1, label, aux = data
                     s1 = s1.to(device)
                     label = label.to(device)
                     logits = model(s1)
-                loss = criterion(logits.squeeze(-1), label)
+                    s2 = None 
+                pred = logits.squeeze(-1)
+                outputEDA.appendf(label, pred, aux, s1, s2)
+                loss = criterion(pred, label)
                 pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
                 val_loss += loss.to(torch.device("cpu")).detach().item()
                 val_pearson += pearson.to(torch.device("cpu")).detach().item()
                 if not config["test_mode"]:
                     wandb.log({"valid loss": loss, "valid_pearson": pearson})
-            val_loss /= i
-            val_pearson /= i
+            
+            val_loss /= i+1
+            val_pearson /= i+1
             if val_pearson > best_pearson:
+                outputEDA.save(epoch, val_pearson)
                 torch.save(model.state_dict(), config["model_save_path"])
+                best_pearson = val_pearson
+            outputEDA.reset()
+            
     # print("final model saved to", config["model_save_path"])
     # torch.save(model.state_dict(), config["model_save_path"])
->>>>>>> develop
 
     torch.save(model.state_dict(), config["model_save_path"])
     
