@@ -34,7 +34,6 @@ def main(config):
     else:
         print("Model type should be 'BERT' or 'SBERT'!")
         return
-    outputEDA = OutputEDA(config['base_model'])
 
     # get pad_token_id.
     collate_fn = Collate_fn(train_datasets.pad_id, config["model_type"])
@@ -70,7 +69,10 @@ def main(config):
     model.to(device)
 
     epochs = config['epochs']
-    criterion = nn.L1Loss()
+    if config["loss"] == "MAE":
+        criterion = nn.L1Loss()
+    elif config["loss"] == "MSE":
+        criterion = nn.MSELoss()
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
 
     pbar = tqdm(range(epochs))
@@ -93,7 +95,6 @@ def main(config):
                 logits = model(s1)
             loss = criterion(logits.squeeze(-1), label)
             pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
-            outputEDA.append(s1, s2, label, pred)
 
             optimizer.zero_grad()
             loss.backward()
@@ -102,7 +103,6 @@ def main(config):
             if not config["test_mode"]:
                 wandb.log({"train_loss": loss, "train_pearson": pearson})
             pbar.set_postfix({"train_loss": loss})
-        outputEDA.getEDA(epoch)
         val_loss = 0
         val_pearson = 0
         with torch.no_grad():
@@ -122,14 +122,13 @@ def main(config):
                 pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
                 val_loss += loss.to(torch.device("cpu")).detach().item()
                 val_pearson += pearson.to(torch.device("cpu")).detach().item()
-                if not config["test_mode"]:
-                    wandb.log({"valid loss": loss, "valid_pearson": pearson})
-            val_loss /= i
-            val_pearson /= i
+            val_loss /= i + 1
+            val_pearson /= i + 1
+            if not config["test_mode"]:
+                wandb.log({"valid loss": val_loss, "valid_pearson": val_pearson})
+
             if val_pearson > best_pearson:
                 torch.save(model.state_dict(), config["model_save_path"])
-
-    torch.save(model.state_dict(), config["model_save_path"])
     
 
 if __name__ == "__main__":

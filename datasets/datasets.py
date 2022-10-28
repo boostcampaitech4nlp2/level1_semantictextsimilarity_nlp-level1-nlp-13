@@ -18,7 +18,10 @@ class KorSTSDatasets(Dataset):
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.s1 = [tokenizer.encode(s1) for s1 in tsv["sentence_1"]]
         self.s2 = [tokenizer.encode(s2) for s2 in tsv["sentence_2"]]
-        self.y = tsv["label"]
+        if "label" in tsv.keys():
+            self.y = tsv["label"]
+        else:
+            None
 
         self.pad_id = tokenizer.pad_token_id
         self.sep_id = tokenizer.sep_token_id
@@ -28,10 +31,7 @@ class KorSTSDatasets(Dataset):
 
     def __getitem__(self, idx):
         data = torch.IntTensor(self.s1[idx]), torch.IntTensor(self.s2[idx])
-        # cosine similarity의 범위 [-1. ~ 1.] 사이 값으로 정규화 필요.
-        # label = float(self.y[idx]) * 0.4 - 1
-        
-        label = float(self.y[idx])
+        label = float(self.y[idx])/5
         return data, label
 
 class KorSTSDatasets_for_BERT(KorSTSDatasets):
