@@ -5,5 +5,4 @@ wandb
 __pycache__
 results
 sbert_config.yaml
-EDA/output/*
-!EDA/output/
+EDA/output/*.csv
