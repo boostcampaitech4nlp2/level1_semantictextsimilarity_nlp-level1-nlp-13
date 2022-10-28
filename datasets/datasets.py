@@ -18,8 +18,10 @@ class KorSTSDatasets(Dataset):
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.s1 = [tokenizer.encode(s1) for s1 in tsv["sentence_1"]]
         self.s2 = [tokenizer.encode(s2) for s2 in tsv["sentence_2"]]
-        self.y = tsv["label"]
-
+        try:
+            self.y = tsv["label"]
+        except:
+            self.y = [0 for _ in range(len(self.s1))]
         self.pad_id = tokenizer.pad_token_id
         self.sep_id = tokenizer.sep_token_id
 

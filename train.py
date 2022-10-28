@@ -77,6 +77,7 @@ def main(config):
     best_pearson = 0
 
     for epoch in pbar:
+        model.train()
         for iter, data in enumerate(tqdm(train_loader)):
             if config["model_type"] == "SBERT":
                 s1, s2, label = data
@@ -103,6 +104,7 @@ def main(config):
         val_loss = 0
         val_pearson = 0
         with torch.no_grad():
+            model.eval()
             for i, data in enumerate(tqdm(valid_loader)):
                 if config["model_type"] == "SBERT":
                     s1, s2, label = data
@@ -119,10 +121,10 @@ def main(config):
                 pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
                 val_loss += loss.to(torch.device("cpu")).detach().item()
                 val_pearson += pearson.to(torch.device("cpu")).detach().item()
-                if not config["test_mode"]:
-                    wandb.log({"valid loss": loss, "valid_pearson": pearson})
             val_loss /= i
             val_pearson /= i
+            if not config["test_mode"]:
+                    wandb.log({"valid loss": loss, "valid_pearson": pearson})
             if val_pearson > best_pearson:
                 torch.save(model.state_dict(), config["model_save_path"])
     # print("final model saved to", config["model_save_path"])
