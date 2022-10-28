@@ -97,7 +97,7 @@ def main(config):
             if not config["test_mode"]:
                 wandb.log({"train_loss": loss, "train_pearson": pearson})
             pbar.set_postfix({"train_loss": loss})
-        scheduler.step()
+        scheduler.step(metrics="val_loss")
 
         val_loss = 0
         val_pearson = 0
