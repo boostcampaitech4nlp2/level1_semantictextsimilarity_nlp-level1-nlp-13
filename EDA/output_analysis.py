@@ -1,12 +1,13 @@
 from transformers import AutoTokenizer
 from pathlib import Path
 import pandas as pd
+import os
 # TODO : Tokenizer를 Dataset에 의존적으로 설정.
 
 
 class OutputEDA():
     def __init__(self, model_name, file_header):
-        self.remove_lastfiles()
+        #self.remove_lastfiles()
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.pad_id = self.tokenizer.pad_token_id
         self.sep_id = self.tokenizer.sep_token_id
@@ -52,6 +53,8 @@ class OutputEDA():
                     'rtt': self.rtt,
                     'source': self.source}
             output = pd.DataFrame(data)
-            output.to_csv(f'EDA/output/{self.file_header}_{epoch}_{val_pearson}.csv')
+            if not os.path.exists('EDA/output/'):
+                    os.makedirs('EDA/output/') 
+            output.to_csv(f'EDA/output/{self.file_header}_e{epoch}_{val_pearson:.3f}.csv')
         except Exception as e:
             print(e)
