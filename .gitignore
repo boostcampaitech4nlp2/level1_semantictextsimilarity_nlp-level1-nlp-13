@@ -4,7 +4,17 @@ wandb
 .ipynb_checkpoints
 __pycache__
 results
+<<<<<<< HEAD
 sbert_config.yaml
 EDA/output/*.csv
 *.ipynb
 datasets/csv
+=======
+<<<<<<< HEAD
+sbert_config.yaml
+EDA/output/*
+=======
+
+/sbert_config.yaml
+>>>>>>> 0d709117647d48ffcd0ea2871154350feb58bba2
+>>>>>>> develop
