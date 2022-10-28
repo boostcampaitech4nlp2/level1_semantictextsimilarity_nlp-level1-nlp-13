@@ -14,12 +14,12 @@ import random
 class KorSTSDatasets(Dataset):
     def __init__(self, dir, model_name):
         super(KorSTSDatasets, self).__init__()
-        tsv = pd.read_csv(dir)
+        self.tsv = pd.read_csv(dir)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.s1 = [tokenizer.encode(s1) for s1 in tsv["sentence_1"]]
-        self.s2 = [tokenizer.encode(s2) for s2 in tsv["sentence_2"]]
-        if "label" in tsv.keys():
-            self.y = tsv["label"]
+        self.s1 = [tokenizer.encode(s1) for s1 in self.tsv["sentence_1"]]
+        self.s2 = [tokenizer.encode(s2) for s2 in self.tsv["sentence_2"]]
+        if "label" in self.tsv.keys():
+            self.y = self.tsv["label"]
         else:
             self.y = None
 
@@ -31,10 +31,10 @@ class KorSTSDatasets(Dataset):
 
     def __getitem__(self, idx):
         data = torch.IntTensor(self.s1[idx]), torch.IntTensor(self.s2[idx])
-        if self.y == None:
-            label = None
-        else:
+        if "label" in self.tsv.keys():
             label = float(self.y[idx])/5
+        else:
+            label = None
         return data, label
 
 class KorSTSDatasets_for_BERT(KorSTSDatasets):
@@ -44,10 +44,10 @@ class KorSTSDatasets_for_BERT(KorSTSDatasets):
     def __getitem__(self, idx):
         data = self.s1[idx][:-1] + [self.sep_id] + self.s2[idx][1:]
         data = torch.IntTensor(data)
-        if self.y == None:
-            label = None
-        else:
+        if "label" in self.tsv.keys():
             label = float(self.y[idx])
+        else:
+            label = None
 
         return data, label
 
