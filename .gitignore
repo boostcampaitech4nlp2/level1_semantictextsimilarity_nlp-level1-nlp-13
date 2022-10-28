@@ -4,8 +4,10 @@ wandb
 .ipynb_checkpoints
 __pycache__
 results
-sbert_config.yaml
 EDA/output/*
+*.ipynb
+datasets/csv
 stopwords_ver2.txt
 datasets/csv
-*.ipynb
+/sbert_config.yaml
+sbert_config.yaml

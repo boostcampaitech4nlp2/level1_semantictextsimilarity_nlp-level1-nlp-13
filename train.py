@@ -14,6 +14,7 @@ import torchmetrics
 
 from models import SBERT_base_Model, BERT_base_Model
 from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT
+from EDA import OutputEDA
 
 
 def main(config):
@@ -33,7 +34,8 @@ def main(config):
     else:
         print("Model type should be 'BERT' or 'SBERT'!")
         return
-
+    # EDA
+    outputEDA = OutputEDA(config['base_model'], config['log_name'])
     # get pad_token_id.
     collate_fn = Collate_fn(train_datasets.pad_id, config["model_type"])
 
@@ -51,6 +53,7 @@ def main(config):
     valid_loader = DataLoader(
         valid_datasets,
         collate_fn=collate_fn,
+
         batch_size=config['batch_size']
     )
 
@@ -66,9 +69,11 @@ def main(config):
     else:
         print("no pretrained weights provided.")
     model.to(device)
+    
 
     epochs = config['epochs']
-    criterion = nn.L1Loss()
+    criterion = nn.MSELoss()
+    
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
 
     pbar = tqdm(range(epochs))
@@ -78,18 +83,23 @@ def main(config):
 
     for epoch in pbar:
         for iter, data in enumerate(tqdm(train_loader)):
+             #TODO : USE aux data [(one hot )]
             if config["model_type"] == "SBERT":
-                s1, s2, label = data
+                s1, s2, label, aux = data
                 s1 = s1.to(device)
                 s2 = s2.to(device)
                 label = label.to(device)
                 logits = model(s1, s2)
+
             else:
-                s1, label = data
+                s1, label, aux = data
                 s1 = s1.to(device)
                 label = label.to(device)
                 logits = model(s1)
-            loss = criterion(logits.squeeze(-1), label)
+                s2 = None
+
+            pred = logits.squeeze(-1)
+            loss = criterion(pred, label)
             pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
 
             optimizer.zero_grad()
@@ -105,40 +115,52 @@ def main(config):
         with torch.no_grad():
             for i, data in enumerate(tqdm(valid_loader)):
                 if config["model_type"] == "SBERT":
-                    s1, s2, label = data
+                    s1, s2, label, aux = data
                     s1 = s1.to(device)
                     s2 = s2.to(device)
                     label = label.to(device)
                     logits = model(s1, s2)
                 else:
-                    s1, label = data
+                    s1, label, aux = data
                     s1 = s1.to(device)
                     label = label.to(device)
                     logits = model(s1)
-                loss = criterion(logits.squeeze(-1), label)
+                    s2 = None 
+                pred = logits.squeeze(-1)
+                outputEDA.appendf(label, pred, aux, s1, s2)
+                loss = criterion(pred, label)
                 pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
                 val_loss += loss.to(torch.device("cpu")).detach().item()
                 val_pearson += pearson.to(torch.device("cpu")).detach().item()
                 if not config["test_mode"]:
                     wandb.log({"valid loss": loss, "valid_pearson": pearson})
-            val_loss /= i
-            val_pearson /= i
+            
+            val_loss /= i+1
+            val_pearson /= i+1
             if val_pearson > best_pearson:
+                outputEDA.save(epoch, val_pearson)
                 torch.save(model.state_dict(), config["model_save_path"])
+                best_pearson = val_pearson
+            outputEDA.reset()
+            
     # print("final model saved to", config["model_save_path"])
     # torch.save(model.state_dict(), config["model_save_path"])
 
+    torch.save(model.state_dict(), config["model_save_path"])
+    
 
 if __name__ == "__main__":
+    # 실행 위치 고정
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
     # 결과 재현성을 위한 랜덤 시드 고정.
     set_seed(13)
 
     parser = argparse.ArgumentParser(description='Training SBERT.')
     parser.add_argument("--conf", type=str, default="sbert_config.yaml", help="config file path(.yaml)")
     args = parser.parse_args()
-
     with open(args.conf, "r") as f:
         config = yaml.load(f, Loader=yaml.Loader)
 
     main(config)
     
+print('w')
