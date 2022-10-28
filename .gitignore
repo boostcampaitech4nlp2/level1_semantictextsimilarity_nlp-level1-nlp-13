@@ -10,4 +10,9 @@ EDA/output/*
 =======
 
 /sbert_config.yaml
+<<<<<<< HEAD
 >>>>>>> 0d709117647d48ffcd0ea2871154350feb58bba2
+=======
+
+stopwords_ver2.txt
+>>>>>>> 599f82ce044f3f51f1fccb9e4e1ee3cdae4523bf
