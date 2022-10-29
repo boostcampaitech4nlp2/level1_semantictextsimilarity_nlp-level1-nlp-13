@@ -11,3 +11,4 @@ stopwords_ver2.txt
 datasets/csv
 /sbert_config.yaml
 sbert_config.yaml
+output.csv
