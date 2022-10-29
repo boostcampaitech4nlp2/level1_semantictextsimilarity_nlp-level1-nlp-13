@@ -61,8 +61,10 @@ class KorSTSDatasets(Dataset):
         self.source[petition_filter] = 1
         self.source[slack_filter] = 2
         
-        self.y = tsv["label"]
-        
+        try:
+            self.y = tsv["label"]
+        except:
+            self.y = [0 for _ in range(len(self.s1))]
         self.pad_id = tokenizer.pad_token_id
         self.sep_id = tokenizer.sep_token_id
 

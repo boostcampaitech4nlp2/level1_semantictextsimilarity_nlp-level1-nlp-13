@@ -1,5 +1,6 @@
 from transformers import AutoTokenizer
 from pathlib import Path
+import wandb
 import pandas as pd
 import os
 # TODO : Tokenizer를 Dataset에 의존적으로 설정.
@@ -55,6 +56,7 @@ class OutputEDA():
             output = pd.DataFrame(data)
             if not os.path.exists('EDA/output/'):
                     os.makedirs('EDA/output/') 
+            wandb.log({"table": output})
             output.to_csv(f'EDA/output/{self.file_header}_e{epoch}_{val_pearson:.3f}.csv')
         except Exception as e:
             print(e)
