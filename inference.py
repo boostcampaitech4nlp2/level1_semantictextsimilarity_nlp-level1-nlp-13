@@ -54,13 +54,13 @@ if __name__ == '__main__':
         model.eval()
         for i, data in enumerate(tqdm(valid_loader)):
             if args.model_type == "SBERT":
-                s1, s2, label = data
+                s1, s2, label, aux = data
                 s1 = s1.to(device)
                 s2 = s2.to(device)
                 label = label.to(device)
                 logits = model(s1, s2)
             else:
-                s1, label = data
+                s1, label, aux = data
                 s1 = s1.to(device)
                 label = label.to(device)
                 logits = model(s1)
@@ -72,12 +72,12 @@ if __name__ == '__main__':
 
         for i, data in enumerate(tqdm(test_loader)):
             if args.model_type == "SBERT":
-                s1, s2, label = data
+                s1, s2, label, aux = data
                 s1 = s1.to(device)
                 s2 = s2.to(device)
                 logits = model(s1, s2)
             else:
-                s1, label = data
+                s1, label, aux = data
                 s1 = s1.to(device)
                 logits = model(s1)
             logits = logits.squeeze(-1)
@@ -88,6 +88,11 @@ if __name__ == '__main__':
     pearson = torchmetrics.functional.pearson_corrcoef(torch.tensor(val_predictions), torch.tensor(val_labels))
     print("valid pearson = ",pearson)
     test_predictions = list(round(float(i), 1) for i in test_predictions)
+    for i in range(len(test_predictions)):
+        if test_predictions[i] < 0:
+            test_predictions[i] = 0
+        elif test_predictions[i] > 5:
+            test_predictions[i] = 5
     output = pd.read_csv('NLP_dataset/sample_submission.csv')
     output['target'] = test_predictions
     output.to_csv('output.csv', index=False)
