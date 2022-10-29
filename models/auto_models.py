@@ -1,4 +1,4 @@
-from transformers import AutoModel, BertForSequenceClassification
+from transformers import AutoModel, BertForSequenceClassification, AutoModelForSequenceClassification
 import torch.nn as nn
 import torch
 
@@ -24,7 +24,7 @@ class SBERT_base_Model(nn.Module):
 class BERT_base_Model(nn.Module):
     def __init__(self, model_name):
         super(BERT_base_Model, self).__init__()
-        self.bert = BertForSequenceClassification.from_pretrained(model_name, num_labels=1)
+        self.bert = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=1)
         self.linear = nn.Linear(self.bert.config.hidden_size, 1)
         self.similarity = nn.CosineSimilarity(dim=-1)
 

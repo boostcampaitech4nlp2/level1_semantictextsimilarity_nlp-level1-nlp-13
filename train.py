@@ -82,6 +82,7 @@ def main(config):
     best_pearson = 0
 
     for epoch in pbar:
+        model.train()
         for iter, data in enumerate(tqdm(train_loader)):
              #TODO : USE aux data [(one hot )]
             if config["model_type"] == "SBERT":
@@ -113,6 +114,7 @@ def main(config):
         val_loss = 0
         val_pearson = 0
         with torch.no_grad():
+            model.eval()
             for i, data in enumerate(tqdm(valid_loader)):
                 if config["model_type"] == "SBERT":
                     s1, s2, label, aux = data
@@ -132,11 +134,10 @@ def main(config):
                 pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
                 val_loss += loss.to(torch.device("cpu")).detach().item()
                 val_pearson += pearson.to(torch.device("cpu")).detach().item()
-                if not config["test_mode"]:
+            val_loss /= i + 1
+            val_pearson /= i + 1
+            if not config["test_mode"]:
                     wandb.log({"valid loss": loss, "valid_pearson": pearson})
-            
-            val_loss /= i+1
-            val_pearson /= i+1
             if val_pearson > best_pearson:
                 outputEDA.save(epoch, val_pearson)
                 torch.save(model.state_dict(), config["model_save_path"])
