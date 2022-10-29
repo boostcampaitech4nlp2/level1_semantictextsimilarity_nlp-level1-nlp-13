@@ -1,7 +1,9 @@
+import math
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch
 from torch.optim import Adam
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import wandb
 import yaml
 import argparse
@@ -17,6 +19,40 @@ from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSData
 from EDA import OutputEDA
 
 
+class EarlyStopping:
+    def __init__(self, path, patience=5, verbose=False, mode="min"):
+        self.path = path
+        self.patience = patience
+        self.verbose = verbose
+        self.mode = mode
+        self.patience_cnt = 0
+        self.earlystop = False
+        self.best_epoch = False
+        
+        if self.mode == "min":
+            self.ref = math.inf
+        elif self.mode == "max":
+            self.ref = -math.inf          
+        else:
+            raise ValueError("mode can be 'min' or 'max' only.")
+
+    def __call__(self, cur_ref, model):
+        if (self.mode == "max" and cur_ref > self.ref) \
+            or (self.mode == "min" and cur_ref < self.ref):      
+                if self.verbose:
+                    print(f'Earlystop: the best target value is changed. [{self.ref:.4f} > {cur_ref:.4f}]')
+                torch.save(model.state_dict(), self.path)
+                self.patience_cnt = 0
+                self.ref = cur_ref
+                self.best_epoch = True
+        else:
+            self.patience_cnt += 1
+            self.best_epoch = False
+            if self.patience_cnt >= self.patience:
+                if self.verbose:
+                    print('earlystopping')   
+                self.earlystop = True
+                
 def main(config):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
@@ -24,7 +60,8 @@ def main(config):
 
     if not config["test_mode"]:
         run = wandb.init(project="sentence_bert", entity="nlp-13", config=config, name=config['log_name'], notes=config['notes'])
-
+    
+    
     if config["model_type"] == "SBERT":
         train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'])
         valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'])
@@ -61,6 +98,9 @@ def main(config):
         model = SBERT_base_Model(config["base_model"])
     else:
         model = BERT_base_Model(config["base_model"])
+    
+    if not config["test_mode"]:
+        wandb.watch(model, log="all")
         
     print("Base model is", config['base_model'])
     if os.path.exists(config["model_load_path"]):
@@ -75,14 +115,12 @@ def main(config):
     criterion = nn.MSELoss()
     
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
-
+    scheduler = ReduceLROnPlateau(optimizer, 'max', factor=0.35, patience=4, verbose=True)
+    
+    earlystopping = EarlyStopping(config['model_save_path'], patience=10, verbose=True, mode="max")
     pbar = tqdm(range(epochs))
 
-    best_val_loss = 1000
-    best_pearson = 0
-
     for epoch in pbar:
-        model.train()
         for iter, data in enumerate(tqdm(train_loader)):
              #TODO : USE aux data [(one hot )]
             if config["model_type"] == "SBERT":
@@ -114,7 +152,6 @@ def main(config):
         val_loss = 0
         val_pearson = 0
         with torch.no_grad():
-            model.eval()
             for i, data in enumerate(tqdm(valid_loader)):
                 if config["model_type"] == "SBERT":
                     s1, s2, label, aux = data
@@ -137,17 +174,16 @@ def main(config):
             val_loss /= i + 1
             val_pearson /= i + 1
             if not config["test_mode"]:
-                    wandb.log({"valid loss": loss, "valid_pearson": pearson})
-            if val_pearson > best_pearson:
+                    wandb.log({"valid loss": val_loss, "valid_pearson": val_pearson})
+            # early stopping
+            earlystopping(val_pearson, model)
+            scheduler.step(val_pearson)
+            if earlystopping.best_epoch:
                 outputEDA.save(epoch, val_pearson)
-                torch.save(model.state_dict(), config["model_save_path"])
-                best_pearson = val_pearson
             outputEDA.reset()
-            
-    # print("final model saved to", config["model_save_path"])
-    # torch.save(model.state_dict(), config["model_save_path"])
+        if earlystopping.earlystop:
+            break
 
-    torch.save(model.state_dict(), config["model_save_path"])
     
 
 if __name__ == "__main__":

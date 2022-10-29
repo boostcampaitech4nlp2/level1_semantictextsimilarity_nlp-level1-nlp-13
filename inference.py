@@ -25,10 +25,12 @@ if __name__ == '__main__':
     parser.add_argument('--model_name', default='klue/roberta-large', type=str)
     parser.add_argument('--model_type', default='BERT', type=str)
     parser.add_argument('--model_path', default='results/klue-roberta-large.pt', type=str)
-    args = parser.parse_args(args=[])
+    args = parser.parse_args()
 
-    test_datasets = KorSTSDatasets_for_BERT('NLP_dataset/han_processed_test.csv', args.model_name)
-    valid_datasets = KorSTSDatasets_for_BERT('NLP_dataset/han_processed_dev.csv', args.model_name)
+    test_datasets = KorSTSDatasets_for_BERT('NLP_dataset/test.csv', args.model_name)
+    valid_datasets = KorSTSDatasets_for_BERT('NLP_dataset/dev.csv', args.model_name)
+    #test_datasets = KorSTSDatasets_for_BERT('NLP_dataset/han_processed_test.csv', args.model_name)
+    #valid_datasets = KorSTSDatasets_for_BERT('NLP_dataset/han_processed_dev.csv', args.model_name)
     collate_fn = Collate_fn(test_datasets.pad_id, args.model_name)
 
     test_loader = DataLoader(
