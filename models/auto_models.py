@@ -33,3 +33,18 @@ class BERT_base_Model(nn.Module):
         outputs = self.bert(src_ids)
 
         return outputs.logits
+
+class BERT_base_NLI_Model(nn.Module):
+    def __init__(self, model_name):
+        super(BERT_base_NLI_Model, self).__init__()
+        if "roberta" in model_name:
+            self.bert = RobertaForSequenceClassification.from_pretrained(model_name, num_labels=1)
+        else:
+            self.bert = BertForSequenceClassification.from_pretrained(model_name, num_labels=1)
+        self.sigmoid = nn.Sigmoid()
+        
+    def forward(self, src_ids):
+        outputs = self.bert(src_ids).logits
+        outputs = self.sigmoid(outputs)
+
+        return outputs

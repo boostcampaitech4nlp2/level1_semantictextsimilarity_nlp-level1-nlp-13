@@ -17,6 +17,7 @@ Models = {"SBERT": SBERT_base_Model, "BERT": BERT_base_Model}
 def main(config):
     device = torch.device("cuda") if torch.cuda.is_available else toch.device("cpu")
 
+    print("prepare datasets")
     datasets = Datasets[config["model_type"]](config["test_csv"], config["base_model"])
 
     collate_fn = Collate_fn(datasets.pad_id, config["model_type"])
@@ -27,6 +28,7 @@ def main(config):
         batch_size=config["batch_size"]
     )
 
+    print("load model...")
     model = Models[config["model_type"]](config["base_model"])
 
     model.load_state_dict(torch.load(config["model_load_path"]))

@@ -12,14 +12,14 @@ from set_seed import set_seed
 from transformers import AutoTokenizer
 import torchmetrics
 
-from models import SBERT_base_Model, BERT_base_Model
-from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT
+from models import SBERT_base_Model, BERT_base_Model, BERT_base_NLI_Model
+from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT, KorNLIDatasets
 from EDA import OutputEDA
 
 
-Models = {"BERT": BERT_base_Model, "SBERT": SBERT_base_Model}
-Datasets = {"BERT": KorSTSDatasets_for_BERT, "SBERT": KorSTSDatasets_for_BERT}
-Losses = {"MAE": nn.L1Loss, "MSE": nn.MSELoss}
+Models = {"BERT": BERT_base_Model, "SBERT": SBERT_base_Model, "BERT_NLI": BERT_base_NLI_Model}
+Datasets = {"BERT": KorSTSDatasets_for_BERT, "SBERT": KorSTSDatasets_for_BERT, "BERT_NLI": KorNLIDatasets}
+Losses = {"MAE": nn.L1Loss, "MSE": nn.MSELoss, "BCE": nn.BCELoss}
 
 def main(config):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -67,7 +67,7 @@ def main(config):
 
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
 
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5)
 
     pbar = tqdm(range(epochs))
 
@@ -97,7 +97,6 @@ def main(config):
             if not config["test_mode"]:
                 wandb.log({"train_loss": loss, "train_pearson": pearson})
             pbar.set_postfix({"train_loss": loss})
-        scheduler.step(metrics="val_loss")
 
         val_loss = 0
         val_pearson = 0
@@ -122,6 +121,7 @@ def main(config):
             val_pearson /= i + 1
             if not config["test_mode"]:
                 wandb.log({"valid loss": val_loss, "valid_pearson": val_pearson})
+            scheduler.step(metrics=val_loss)
 
             if val_pearson > best_pearson:
                 torch.save(model.state_dict(), config["model_save_path"])
@@ -141,4 +141,3 @@ if __name__ == "__main__":
 
     main(config)
     
-print('w')

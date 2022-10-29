@@ -20,6 +20,7 @@ class KorSTSDatasets(Dataset):
         self.s2 = [tokenizer.encode(s2) for s2 in self.tsv["sentence_2"]]
         if "label" in self.tsv.keys():
             self.y = self.tsv["label"]
+            self.b_y = self.tsv["binary-label"]
         else:
             self.y = None
 
@@ -46,6 +47,20 @@ class KorSTSDatasets_for_BERT(KorSTSDatasets):
         data = torch.IntTensor(data)
         if "label" in self.tsv.keys():
             label = float(self.y[idx])
+        else:
+            label = None
+
+        return data, label
+
+class KorNLIDatasets(KorSTSDatasets):
+    def __init__(self, dir, model_name):
+        super(KorNLIDatasets, self).__init__(dir, model_name)
+
+    def __getitem__(self, idx):
+        data = self.s1[idx][:-1] + [self.sep_id] + self.s2[idx][1:]
+        data = torch.IntTensor(data)
+        if "label" in self.tsv.keys():
+            label = int(self.b_y[idx])
         else:
             label = None
 
