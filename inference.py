@@ -1,4 +1,4 @@
-from models import SBERT_base_Model, BERT_base_Model
+from models import SBERT_base_Model, BERT_base_Model, BERT_base_NLI_Model
 from datasets import KorSTSDatasets, Collate_fn, KorSTSDatasets_for_BERT, KorNLIDatasets
 from utils import train_step, valid_step
 
@@ -39,9 +39,10 @@ def main(config):
     model.to(device)
 
     model.eval()
-    
-    criterion = Criterions[config["loss"]]
-
+    if config["loss"] == "CE":
+        criterion = Criterions[config["loss"]](ignore_index=0)
+    else:
+        criterion = Criterions[config["loss"]]()
     preds = []
 
     with torch.no_grad():
