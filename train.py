@@ -15,7 +15,11 @@ import torchmetrics
 from models import SBERT_base_Model, BERT_base_Model, MLM_Model
 from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT, KorSTSDatasets_for_MLM
 from criterion import CrossEntropyLoss
-from EDA import OutputEDA
+
+
+Datasets = {"SBERT": KorSTSDatasets, "BERT": KorSTSDatasets_for_BERT, "BERT_MLM": KorSTSDatasets_for_MLM}
+Models = {"SBERT": SBERT_base_Model, "BERT": BERT_base_Model, "BERT_MLM": MLM_Model}
+Criterions = {"SBERT": nn.MSELoss, "BERT": nn.L1Loss, "BERT_MLM": nn.NLLLoss}
 
 
 def main(config):
@@ -26,18 +30,8 @@ def main(config):
     if not config["test_mode"]:
         run = wandb.init(project="sentence_bert", entity="nlp-13", config=config, name=config['log_name'], notes=config['notes'])
 
-    if config["model_type"] == "SBERT":
-        train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'])
-        valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'])
-    elif config["model_type"] == "BERT":
-        train_datasets = KorSTSDatasets_for_BERT(config['train_csv'], config['base_model'])
-        valid_datasets = KorSTSDatasets_for_BERT(config['valid_csv'], config['base_model'])
-    elif config["model_type"] == "MLM":
-        train_datasets = KorSTSDatasets_for_MLM(config["train_csv"], config["base_model"])
-        valid_datasets = KorSTSDatasets_for_MLM(config["train_csv"], config["base_model"])
-    else:
-        print("Model type should be int ['BERT''SBERT', 'MLM']!")
-        return
+    train_datasets = Datasets[config["model_type"]](config["train_csv"], config["base_model"])
+    valid_datasets = Datasets[config["model_type"]](config["valid_csv"], config["base_model"])
 
     # get pad_token_id.
     collate_fn = Collate_fn(train_datasets.pad_id, config["model_type"])
@@ -58,14 +52,8 @@ def main(config):
         collate_fn=collate_fn,
         batch_size=config['batch_size']
     )
-
-    if config["model_type"] == "SBERT":
-        model = SBERT_base_Model(config["base_model"])
-    elif config["model_type"] == "BERT":
-        model = BERT_base_Model(config["base_model"])
-    else:
-        model = MLM_Model(config["base_model"])
-
+    
+    model = Models[config["model_type"]](config["base_model"])
         
     print("Base model is", config['base_model'])
     if os.path.exists(config["model_load_path"]):
@@ -76,10 +64,8 @@ def main(config):
     model.to(device)
 
     epochs = config['epochs']
-    if config["model_type"] == "MLM":
-        criterion = CrossEntropyLoss(train_datasets.pad_id)
-    else:
-        criterion = nn.L1Loss()
+    criterion = Criterions[config["model_type"]](ignore_index=0)
+    
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
 
     pbar = tqdm(range(epochs))
@@ -110,7 +96,7 @@ def main(config):
                 s1 = s1.to(device)
                 label = label.to(device)
                 logits = model(s1)
-                loss = criterion(logits, label)
+                loss = criterion(logits.transpose(1, 2), label)
                 ppl = torch.exp(loss)
 
             optimizer.zero_grad()
@@ -125,6 +111,7 @@ def main(config):
             pbar.set_postfix({"train_loss": loss})
         val_loss = 0
         val_pearson = 0
+        val_ppl = 0
         with torch.no_grad():
             for i, data in enumerate(tqdm(valid_loader)):
                 if config["model_type"] == "SBERT":
@@ -151,15 +138,18 @@ def main(config):
                     logits = model(s1)
                     loss = criterion(logits, label)
                     ppl = torch.exp(loss)
-
+                    val_ppl += ppl.to(torch.device("cpu")),detach().item()
                 val_loss += loss.to(torch.device("cpu")).detach().item()
-                if not config["test_mode"]:
-                    if config["model_type"] != "MLM":
-                        wandb.log({"valid loss": loss, "valid_pearson": pearson})
-                    else:
-                        wandb.log({"valid loss": loss, "valid_PPL": ppl})
-            val_loss /= i
-            val_pearson /= i
+            
+            val_loss /= i+1
+            if not config["test_mode"]:
+                if config["model_type"] != "MLM":
+                    val_pearson /= i+1
+                    wandb.log({"valid loss": val_loss, "valid_pearson": val_pearson})
+                else:
+                    val_ppl /= i+1
+                    wandb.log({"valid loss": val_loss, "valid_PPL": val_ppl})
+
             if config["model_type"] == "MLM":
                 if val_loss < best_val_loss:
                     torch.save(model.state_dict(), config["model_save_path"])

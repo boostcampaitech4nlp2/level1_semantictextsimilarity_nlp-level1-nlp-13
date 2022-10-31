@@ -37,9 +37,10 @@ class MLM_Model(nn.Module):
     def __init__(self, model_name):
         super(MLM_Model, self).__init__()
         self.bert = BertForMaskedLM.from_pretrained(model_name)
+        self.softmax = nn.LogSoftmax(dim=-1)
 
     def forward(self, src_ids):
         outputs = self.bert(src_ids).logits
-        outputs = outputs.log_softmax(dim=-1)
+        outputs = self.softmax(outputs)
         
         return outputs
