@@ -19,7 +19,6 @@ class KorSTSDatasets(Dataset):
         self.s2 = [self.tokenizer.encode(s2) for s2 in self.tsv["sentence_2"]]
         if "label" in self.tsv.keys():
             self.y = self.tsv["label"]
-            self.b_y = self.tsv["binary-label"]
         else:
             self.y = None
 
@@ -60,7 +59,7 @@ class KorNLIDatasets(KorSTSDatasets):
         data = self.s1[idx][:-1] + [self.sep_id] + self.s2[idx][1:]
         data = torch.IntTensor(data)
         if "label" in self.tsv.keys():
-            label = int(self.b_y[idx])
+            label = 1 if self.y[idx] > 0.5 else 0
         else:
             label = None
 
@@ -73,6 +72,11 @@ class KorSTSDatasets_for_MLM(KorSTSDatasets):
 
     def __getitem__(self, idx):
         sentence = self.sentences[idx]
+        sentence, label = self.masking(sentence)
+        
+        return sentence, label
+        
+    def masking(self, sentence):
         label = torch.zeros(len(sentence)).int()
         for i, s in enumerate(sentence):
             masking = random.random()
@@ -114,7 +118,7 @@ class Collate_fn(object):
                 return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels)
             else:
                 return s1_batch.long(), s2_batch.long(), None
-        elif self.model_type == "BERT":
+        elif self.model_type in ["BERT", "BERT_NLI"]:
             s1 = []
             labels = []
             for b in batch:

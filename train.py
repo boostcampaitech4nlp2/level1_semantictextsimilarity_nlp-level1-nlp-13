@@ -7,7 +7,6 @@ import wandb
 import yaml
 import argparse
 from tqdm import tqdm
-import numpy as np
 import os
 from set_seed import set_seed
 import torchmetrics
@@ -18,8 +17,8 @@ from utils import train_step, valid_step
 from EDA import OutputEDA
 
 
-Models = {"BERT": BERT_base_Model, "SBERT": SBERT_base_Model, "BERT_NLI": BERT_base_NLI_Model, "MLM": KorSTSDatasets_for_MLM}
-Datasets = {"BERT": KorSTSDatasets_for_BERT, "SBERT": KorSTSDatasets_for_BERT, "BERT_NLI": KorSTSDatasets_for_BERT}
+Models = {"BERT": BERT_base_Model, "SBERT": SBERT_base_Model, "BERT_NLI": BERT_base_NLI_Model, "MLM": MLM_Model}
+Datasets = {"BERT": KorSTSDatasets_for_BERT, "SBERT": KorSTSDatasets, "BERT_NLI": KorNLIDatasets, "MLM": KorSTSDatasets_for_MLM}
 Criterions = {"MAE": nn.L1Loss, "MSE": nn.MSELoss, "BCE": nn.BCELoss, "CE": nn.NLLLoss}
 
 def main(config):
@@ -54,7 +53,7 @@ def main(config):
     )
     
     model = Models[config["model_type"]](config["base_model"])
-        
+
     print("Base model is", config['base_model'])
     if os.path.exists(config["model_load_path"]):
         try:
@@ -85,7 +84,7 @@ def main(config):
     # training code.
     for epoch in pbar:
         for iter, data in enumerate(tqdm(train_loader)):
-            loss, score = train_step(data, config["model_type"], device, model, criterion)
+            loss, score = train_step(data, config["model_type"], device, model, criterion, optimizer)
             
             if not config["test_mode"]:
                 if config["model_type"] != "MLM":
