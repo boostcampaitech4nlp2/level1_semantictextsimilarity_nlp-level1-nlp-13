@@ -16,43 +16,11 @@ import torchmetrics
 
 from models import SBERT_base_Model, BERT_base_Model
 from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT
+from utils import EarlyStopping
 from EDA import OutputEDA
 
 
-class EarlyStopping:
-    def __init__(self, path, patience=5, verbose=False, mode="min"):
-        self.path = path
-        self.patience = patience
-        self.verbose = verbose
-        self.mode = mode
-        self.patience_cnt = 0
-        self.earlystop = False
-        self.best_epoch = False
-        
-        if self.mode == "min":
-            self.ref = math.inf
-        elif self.mode == "max":
-            self.ref = -math.inf          
-        else:
-            raise ValueError("mode can be 'min' or 'max' only.")
 
-    def __call__(self, cur_ref, model):
-        if (self.mode == "max" and cur_ref > self.ref) \
-            or (self.mode == "min" and cur_ref < self.ref):      
-                if self.verbose:
-                    print(f'Earlystop: the best target value is changed. [{self.ref:.4f} > {cur_ref:.4f}]')
-                torch.save(model.state_dict(), self.path)
-                self.patience_cnt = 0
-                self.ref = cur_ref
-                self.best_epoch = True
-        else:
-            self.patience_cnt += 1
-            self.best_epoch = False
-            if self.patience_cnt >= self.patience:
-                if self.verbose:
-                    print('earlystopping')   
-                self.earlystop = True
-                
 def main(config):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
@@ -113,11 +81,11 @@ def main(config):
 
 
     epochs = config['epochs']
-    criterion = nn.MSELoss()
+    criterion = nn.L1Loss()
     
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
     scheduler = ReduceLROnPlateau(optimizer, 'max', factor=0.2, patience=5, verbose=True)
-    earlystopping = EarlyStopping(config['model_save_path'], patience=12, verbose=True, mode="max")
+    earlystopping = EarlyStopping(patience=12, verbose=True, mode="max")
     pbar = tqdm(range(epochs))
 
     for epoch in pbar:
@@ -181,9 +149,10 @@ def main(config):
             if not config["test_mode"]:
                     wandb.log({"valid loss": val_loss, "valid_pearson": val_pearson})
             # early stopping
-            earlystopping(val_pearson, model)
+            earlystopping(val_pearson)
             scheduler.step(val_pearson)
             if earlystopping.best_epoch:
+                torch.save(model.state_dict(), config['model_save_path'])
                 outputEDA.save(epoch, val_pearson)
             outputEDA.reset()
         if earlystopping.earlystop:

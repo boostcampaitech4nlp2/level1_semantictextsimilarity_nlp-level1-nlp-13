@@ -85,23 +85,16 @@ if __name__ == '__main__':
                 s1 = s1.to(device)
                 aux = aux.to(device)
                 logits = model(s1, aux)
-                if args.model_type == "FBERT": 
-                    logits = logits[:, 0]  
-                else:
-                    logits = logits.squeeze(-1)
+                logits = logits.squeeze(-1)
             for logit in logits.to(torch.device("cpu")).detach():
                 test_predictions.append(logit)
 
     # output 형식을 불러와서 예측된 결과로 바꿔주고, output.csv로 출력합니다.
 
     pearson = torchmetrics.functional.pearson_corrcoef(torch.tensor(val_predictions), torch.tensor(val_labels))
-    print("valid pearson = ",pearson)
+    print("valid pearson = ", pearson)
     test_predictions = list(round(float(i), 1) for i in test_predictions)
-    for i in range(len(test_predictions)):
-        if test_predictions[i] < 0:
-            test_predictions[i] = 0.0
-        elif test_predictions[i] > 5:
-            test_predictions[i] = 5.0
+    test_predictions = np.clip(test_predictions, 0, 5)
     output = pd.read_csv('NLP_dataset/sample_submission.csv')
     output['target'] = test_predictions
     output.to_csv('output.csv', index=False)
