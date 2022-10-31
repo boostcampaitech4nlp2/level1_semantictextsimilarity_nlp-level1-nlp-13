@@ -14,6 +14,7 @@ import torchmetrics
 
 from models import SBERT_base_Model, BERT_base_Model, BERT_base_NLI_Model, MLM_Model
 from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT, KorNLIDatasets, KorSTSDatasets_for_MLM
+from utils import train_step, valid_step
 from EDA import OutputEDA
 
 
@@ -59,6 +60,7 @@ def main(config):
         try:
             model.load_state_dict(torch.load(config["model_load_path"]))
         except:
+            print("Weights dosen't match exactly with keys. So weights will loaded not strictly.")
             model.load_state_dict(torch.load(config["model_load_path"]), strict=False)
         print("weights loaded from", config["model_load_path"])
     else:
@@ -83,87 +85,33 @@ def main(config):
     # training code.
     for epoch in pbar:
         for iter, data in enumerate(tqdm(train_loader)):
-            if config["model_type"] == "SBERT":
-                s1, s2, label = data
-                s1 = s1.to(device)
-                s2 = s2.to(device)
-                label = label.to(device)
-                logits = model(s1, s2)
-                loss = criterion(logits.squeeze(-1), label)
-                pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
-            elif config["model_type"] in ["BERT", "NLI"]:
-                s1, label = data
-                s1 = s1.to(device)
-                label = label.to(device)
-                logits = model(s1)
-                loss = criterion(logits.squeeze(-1), label)
-                pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
-            elif config["model_type"] == "MLM":
-                s1, label = data
-                s1 = s1.to(device)
-                label = label.to(device)
-                logits = model(s1)
-                loss = criterion(logits.transpose(1, 2), label)
-                ppl = torch.exp(loss)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            loss = loss.detach().item()
+            loss, score = train_step(data, config["model_type"], device, model, criterion)
+            
             if not config["test_mode"]:
                 if config["model_type"] != "MLM":
-                    wandb.log({"train_loss": loss, "train_pearson": pearson})
+                    wandb.log({"train_loss": loss, "train_pearson": score})
                 else:
-                    wandb.log({"train_loss": loss, "train_PPL": ppl})
+                    wandb.log({"train_loss": loss, "train_PPL": score})
             pbar.set_postfix({"train_loss": loss})
 
         val_loss = 0
-        val_pearson = 0
-        val_ppl = 0
+        val_score = 0
         with torch.no_grad():
             for i, data in enumerate(tqdm(valid_loader)):
-                if config["model_type"] == "SBERT":
-                    s1, s2, label = data
-                    s1 = s1.to(device)
-                    s2 = s2.to(device)
-                    label = label.to(device)
-                    logits = model(s1, s2)
-                    loss = criterion(logits.squeeze(-1), label)
-                    pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
-                    val_pearson += pearson.to(torch.device("cpu")).detach().item()
-                elif config["model_type"] in ["BERT", "NLI"]:
-                    s1, label = data
-                    s1 = s1.to(device)
-                    label = label.to(device)
-                    logits = model(s1)
-                    loss = criterion(logits.squeeze(-1), label)
-                    pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
-                    val_pearson += pearson.to(torch.device("cpu")).detach().item()
-                else:
-                    s1, label = data
-                    s1 = s1.to(device)
-                    label = label.to(device)
-                    logits = model(s1)
-                    loss = criterion(logits.transpose(1, 2), label)
-                    ppl = torch.exp(loss)
-                    val_ppl += ppl.to(torch.device("cpu")).detach().item()
-                val_loss += loss.to(torch.device("cpu")).detach().item()
-            
-            val_loss /= i+1
+                logits, loss, score = valid_step(data, config["model_type"], device, model, criterion)
+                val_loss += loss
+                val_score += score
+
+            val_loss /= (i+1)
+            val_score /= (i+1)
             if not config["test_mode"]:
-                if config["model_type"] != "MLM":
-                    val_pearson /= i+1
-                    wandb.log({"valid loss": val_loss, "valid_pearson": val_pearson})
-                else:
-                    val_ppl /= i+1
-                    wandb.log({"valid loss": val_loss, "valid_PPL": val_ppl})
+                if config["model_type"] != "MLM": wandb.log({"valid loss": val_loss, "valid_pearson": val_score})
+                else: wandb.log({"valid loss": val_loss, "valid_PPL": val_score})
 
             if config["model_type"] == "MLM":
-                if val_loss < best_val_loss:
-                    torch.save(model.state_dict(), config["model_save_path"])
+                if val_loss < best_val_loss: torch.save(model.state_dict(), config["model_save_path"])
             else:
-                if val_pearson > best_pearson:
-                    torch.save(model.state_dict(), config["model_save_path"])
+                if val_score > best_pearson: torch.save(model.state_dict(), config["model_save_path"])
     
 
 if __name__ == "__main__":
