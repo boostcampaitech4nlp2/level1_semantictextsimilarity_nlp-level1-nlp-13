@@ -1,5 +1,7 @@
 from models import SBERT_base_Model, BERT_base_Model
-from datasets import KorSTSDatasets, Collate_fn, KorSTSDatasets_for_BERT
+from datasets import KorSTSDatasets, Collate_fn, KorSTSDatasets_for_BERT, KorNLIDatasets
+from utils import train_step, valid_step
+
 from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
@@ -10,9 +12,9 @@ import numpy as np
 import pandas as pd
 
 
-Datasets = {"SBERT": KorSTSDatasets, "BERT": KorSTSDatasets_for_BERT}
-Models = {"SBERT": SBERT_base_Model, "BERT": BERT_base_Model}
-
+Datasets = {"SBERT": KorSTSDatasets, "BERT": KorSTSDatasets_for_BERT, "BERT_NLI": KorNLIDatasets}
+Models = {"SBERT": SBERT_base_Model, "BERT": BERT_base_Model, "BERT_NLI": BERT_base_NLI_Model}
+Criterions = {"MAE": nn.L1Loss, "MSE": nn.MSELoss, "BCE": nn.BCELoss, "CE": nn.NLLLoss}
 
 def main(config):
     device = torch.device("cuda") if torch.cuda.is_available else torch.device("cpu")
@@ -37,22 +39,16 @@ def main(config):
     model.to(device)
 
     model.eval()
+    
+    criterion = Criterions[config["loss"]]
 
     preds = []
 
     with torch.no_grad():
         for data in tqdm(data_loader):
-            if config["model_type"] == "SBERT":
-                s1, s2, label = data
-                s1 = s1.to(device)
-                s2 = s2.to(device)
-                pred = model(s1, s2).to(torch.device("cpu")).detach().numpy().flatten()
-                preds += list(pred)
-            elif config["model_type"] == "BERT":
-                s1, label = data
-                s1 = s1.to(device)
-                pred = model(s1).to(torch.device("cpu")).detach().numpy().flatten()
-                preds += list(pred)
+            pred, loss, score = valid_step(data, config["model_type"], device, model, criterion, None)
+            pred = pred.to(torch.device("cpu")).detach().numpy().flatten()
+            preds += list(pred)
 
     output = pd.read_csv("NLP_dataset/sample_submission.csv")
     preds = [round(np.clip(p, 0, 5), 1) for p in preds]
