@@ -129,7 +129,7 @@ class Collate_fn(object):
                 
             s1_batch = pad_sequence(s1_batches, batch_first=True, padding_value=self.pad_id)
             s2_batch = pad_sequence(s2_batches, batch_first=True, padding_value=self.pad_id)
-            return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels), auxes
+            return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels), torch.stack(auxes, 0)
         else:
             s1 = []
             labels = []
@@ -141,7 +141,7 @@ class Collate_fn(object):
                 auxes.append(aux)
                 
             s1_batch = pad_sequence(s1, batch_first=True, padding_value=self.pad_id)
-            return s1_batch.long(), torch.FloatTensor(labels), auxes
+            return s1_batch.long(), torch.FloatTensor(labels), torch.stack(auxes, 0)
 
 
 def bucket_pair_indices(

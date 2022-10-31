@@ -99,6 +99,7 @@ def main(config):
     else:
         model = BERT_base_Model(config["base_model"])
     
+
     if not config["test_mode"]:
         wandb.watch(model, log="all")
         
@@ -109,15 +110,14 @@ def main(config):
     else:
         print("no pretrained weights provided.")
     model.to(device)
-    
+
 
     epochs = config['epochs']
     criterion = nn.MSELoss()
     
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
-    scheduler = ReduceLROnPlateau(optimizer, 'max', factor=0.35, patience=4, verbose=True)
-    
-    earlystopping = EarlyStopping(config['model_save_path'], patience=10, verbose=True, mode="max")
+    scheduler = ReduceLROnPlateau(optimizer, 'max', factor=0.2, patience=5, verbose=True)
+    earlystopping = EarlyStopping(config['model_save_path'], patience=12, verbose=True, mode="max")
     pbar = tqdm(range(epochs))
 
     for epoch in pbar:
@@ -129,19 +129,18 @@ def main(config):
                 s1 = s1.to(device)
                 s2 = s2.to(device)
                 label = label.to(device)
-                logits = model(s1, s2)
-
+                aux = aux.to(device)
             else:
                 s1, label, aux = data
                 s1 = s1.to(device)
                 label = label.to(device)
-                logits = model(s1)
+                aux = aux.to(device)
+                logits = model(s1, aux)
                 s2 = None
-
-            pred = logits.squeeze(-1)
-            loss = criterion(pred, label)
+            pred = logits.squeeze(-1) 
             pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
-
+                
+            loss = criterion(pred, label)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -159,18 +158,22 @@ def main(config):
                     s1, s2, label, aux = data
                     s1 = s1.to(device)
                     s2 = s2.to(device)
+                    aux = aux.to(device)
                     label = label.to(device)
-                    logits = model(s1, s2)
+                    logits = model(s1, s2)   
                 else:
                     s1, label, aux = data
                     s1 = s1.to(device)
                     label = label.to(device)
-                    logits = model(s1)
+                    aux = aux.to(device)
+                    logits = model(s1, aux)    
                     s2 = None 
-                pred = logits.squeeze(-1)
+                    
+                pred = logits.squeeze(-1) 
+                pearson = torchmetrics.functional.pearson_corrcoef(pred, label.squeeze())
                 outputEDA.appendf(label, pred, aux, s1, s2)
+                
                 loss = criterion(pred, label)
-                pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
                 val_loss += loss.to(torch.device("cpu")).detach().item()
                 val_pearson += pearson.to(torch.device("cpu")).detach().item()
             val_loss /= i + 1
