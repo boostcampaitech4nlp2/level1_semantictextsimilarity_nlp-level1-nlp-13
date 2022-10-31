@@ -1,4 +1,4 @@
-from transformers import AutoModel, BertForSequenceClassification, BertForMaskedLM
+from transformers import AutoModel, BertForSequenceClassification, BertForMaskedLM, RobertaForSequenceClassification, RobertaForMaskedLM
 import torch.nn as nn
 import torch
 
@@ -24,7 +24,7 @@ class SBERT_base_Model(nn.Module):
 class BERT_base_Model(nn.Module):
     def __init__(self, model_name):
         super(BERT_base_Model, self).__init__()
-        self.bert = BertForSequenceClassification.from_pretrained(model_name, num_labels=1)
+        self.bert = RobertaForSequenceClassification.from_pretrained(model_name, num_labels=1)
         self.linear = nn.Linear(self.bert.config.hidden_size, 1)
         self.similarity = nn.CosineSimilarity(dim=-1)
 
@@ -36,7 +36,7 @@ class BERT_base_Model(nn.Module):
 class MLM_Model(nn.Module):
     def __init__(self, model_name):
         super(MLM_Model, self).__init__()
-        self.bert = BertForMaskedLM.from_pretrained(model_name)
+        self.bert = RobertaForMaskedLM.from_pretrained(model_name)
         self.softmax = nn.LogSoftmax(dim=-1)
 
     def forward(self, src_ids):

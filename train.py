@@ -17,9 +17,9 @@ from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSData
 from criterion import CrossEntropyLoss
 
 
-Datasets = {"SBERT": KorSTSDatasets, "BERT": KorSTSDatasets_for_BERT, "BERT_MLM": KorSTSDatasets_for_MLM}
-Models = {"SBERT": SBERT_base_Model, "BERT": BERT_base_Model, "BERT_MLM": MLM_Model}
-Criterions = {"SBERT": nn.MSELoss, "BERT": nn.L1Loss, "BERT_MLM": nn.NLLLoss}
+Datasets = {"SBERT": KorSTSDatasets, "BERT": KorSTSDatasets_for_BERT, "MLM": KorSTSDatasets_for_MLM}
+Models = {"SBERT": SBERT_base_Model, "BERT": BERT_base_Model, "MLM": MLM_Model}
+Criterions = {"SBERT": nn.MSELoss, "BERT": nn.L1Loss, "MLM": nn.NLLLoss}
 
 
 def main(config):
@@ -136,7 +136,7 @@ def main(config):
                     s1 = s1.to(device)
                     label = label.to(device)
                     logits = model(s1)
-                    loss = criterion(logits, label)
+                    loss = criterion(logits.transpose(1, 2), label)
                     ppl = torch.exp(loss)
                     val_ppl += ppl.to(torch.device("cpu")),detach().item()
                 val_loss += loss.to(torch.device("cpu")).detach().item()
