@@ -121,6 +121,7 @@ def main(config):
     pbar = tqdm(range(epochs))
 
     for epoch in pbar:
+        model.train()
         for iter, data in enumerate(tqdm(train_loader)):
              #TODO : USE aux data [(one hot )]
             if config["model_type"] == "SBERT":
@@ -152,6 +153,7 @@ def main(config):
         val_loss = 0
         val_pearson = 0
         with torch.no_grad():
+            model.eval()
             for i, data in enumerate(tqdm(valid_loader)):
                 if config["model_type"] == "SBERT":
                     s1, s2, label, aux = data
