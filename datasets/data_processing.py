@@ -5,9 +5,6 @@ import argparse
 from hanspell import spell_checker
 from transformers import AutoTokenizer
 
-train_df = pd.read_csv('../NLP_dataset/train.csv')
-test_df = pd.read_csv('../NLP_dataset/test.csv')
-dev_df = pd.read_csv('../NLP_dataset/dev.csv')
 
 def make_one_chars(sentence):
     # sentence = re.subn(s+'+',s, sentence)[0]
@@ -96,6 +93,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     with open(args.conf, "r") as f:
         config = yaml.load(f, Loader=yaml.Loader)
+    
+    train_df = pd.read_csv('../NLP_dataset/train.csv')
+    test_df = pd.read_csv('../NLP_dataset/test.csv')
+    dev_df = pd.read_csv('../NLP_dataset/dev.csv')
           
     train_tmp = train_df
     test_tmp = test_df

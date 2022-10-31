@@ -56,7 +56,8 @@ def main(config):
     model = Models[config["model_type"]](config["base_model"])
     
     if not config["test_mode"]:
-        run = wandb.init(project="sentence_bert", entity="nlp-13", config=config, name=config['log_name'], notes=config['notes'])
+        run = wandb.init(project="sentence_bert", entity="nlp-13", config=config, 
+                         name=config['log_name'], notes=config['notes'])
         wandb.watch(model, log="all")
 
     print("Base model is", config['base_model'])
@@ -81,11 +82,13 @@ def main(config):
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
 
     if config["model_type"] == "MLM":
-        earlystopping = EarlyStopping(patience=3, verbose=True, mode="min")
-        scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.2, patience=5, verbose=True)
+        earlystopping = EarlyStopping(patience=config["early_stopping_patience"], verbose=True, mode="min")
+        scheduler = ReduceLROnPlateau(optimizer, 'min', factor=config["lr_scheduler_factor"], 
+                                      patience=config["lr_scheduler_patience"], verbose=True)
     else:
-        earlystopping = EarlyStopping(patience=12, verbose=True, mode="max")
-        scheduler = ReduceLROnPlateau(optimizer, 'max', factor=0.2, patience=5, verbose=True)
+        earlystopping = EarlyStopping(patience=config["early_stopping_patience"], verbose=True, mode="max")
+        scheduler = ReduceLROnPlateau(optimizer, 'max', factor=config["lr_scheduler_factor"], 
+                                      patience=config["lr_scheduler_patience"], verbose=True)
 
     pbar = tqdm(range(epochs))
 
@@ -125,7 +128,8 @@ def main(config):
             if earlystopping.best_epoch:
                 torch.save(model.state_dict(), config["model_save_path"])
                 print("model saved to ", config["model_save_path"])
-                outputEDA.save(epoch, val_score)
+                if not config["test_mode"]:
+                    outputEDA.save(epoch, val_score)
             outputEDA.reset()
 
         if earlystopping.earlystop:
@@ -135,6 +139,7 @@ def main(config):
 if __name__ == "__main__":
     # 실행 위치 고정
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    os.environ["TOKENIZERS_PARALLELISM"] = "False"
     # 결과 재현성을 위한 랜덤 시드 고정.
     set_seed(13)
 

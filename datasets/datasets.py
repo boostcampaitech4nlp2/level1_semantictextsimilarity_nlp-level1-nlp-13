@@ -9,7 +9,7 @@ from collections import defaultdict
 from typing import List, Tuple
 import random
 
-from data_processing import stopword_processing
+from .data_processing import stopword_processing
 
 
 class KorSTSDatasets(Dataset):
@@ -108,8 +108,8 @@ class KorNLIDatasets(KorSTSDatasets):
         return data, label, aux
 
 class KorSTSDatasets_for_MLM(KorSTSDatasets):
-    def __init__(self, dir, model_name):
-        super(KorSTSDatasets_for_MLM, self).__init__(dir, model_name)
+    def __init__(self, dir, model_name, stopword=False):
+        super(KorSTSDatasets_for_MLM, self).__init__(dir, model_name, stopword)
         self.sentences = self.s1 + self.s2
 
     def __getitem__(self, idx):
