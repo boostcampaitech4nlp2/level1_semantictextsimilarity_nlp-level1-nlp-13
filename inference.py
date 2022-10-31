@@ -55,7 +55,7 @@ def main(config):
                 preds += list(pred)
 
     output = pd.read_csv("NLP_dataset/sample_submission.csv")
-    preds = [round(np.clip(p*5, 0, 5), 1) for p in preds]
+    preds = [round(np.clip(p, 0, 5), 1) for p in preds]
     output['target'] = preds
     output.to_csv("output.csv", index=False)
 
