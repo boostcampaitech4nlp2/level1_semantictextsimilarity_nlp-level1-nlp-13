@@ -13,7 +13,7 @@ from transformers import AutoTokenizer
 import torchmetrics
 import pandas as pd
 
-from models import SBERT_base_Model, BERT_base_Model
+from models import SBERT_base_Model, BERT_base_Model, BERT_focal_Model
 from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT
 
 
@@ -41,7 +41,10 @@ if __name__ == '__main__':
         collate_fn=collate_fn,
         batch_size=64,
     )
-    model = BERT_base_Model(args.model_name)
+    if args.model_type == "FBERT":   
+        model = BERT_focal_Model(args.model_name)
+    else:
+        model = BERT_focal_Model(args.model_name)
     model.load_state_dict(torch.load(args.model_path))
     print("weights loaded from", args.model_path)
     model.to(device)
@@ -56,13 +59,18 @@ if __name__ == '__main__':
                 s1 = s1.to(device)
                 s2 = s2.to(device)
                 label = label.to(device)
-                logits = model(s1, s2)
+                aux = aux.to(device)
+                logits = model(s1, s2, aux)
             else:
                 s1, label, aux = data
                 s1 = s1.to(device)
                 label = label.to(device)
-                logits = model(s1)
-            logits = logits.squeeze(-1)
+                aux = aux.to(device)
+                logits = model(s1, aux)
+                if args.model_type == "FBERT":   
+                    logits = logits[:, 0]
+                else:
+                    logits = logits.squeeze(-1)
             for logit in logits.to(torch.device("cpu")).detach():
                 val_predictions.append(logit)
             for lab in label.to(torch.device("cpu")).detach(): 
@@ -73,16 +81,22 @@ if __name__ == '__main__':
                 s1, s2, label, aux = data
                 s1 = s1.to(device)
                 s2 = s2.to(device)
-                logits = model(s1, s2)
+                aux = aux.to(device)
+                logits = model(s1, s2, aux)
             else:
                 s1, label, aux = data
                 s1 = s1.to(device)
-                logits = model(s1)
-            logits = logits.squeeze(-1)
+                aux = aux.to(device)
+                logits = model(s1, aux)
+                if args.model_type == "FBERT": 
+                    logits = logits[:, 0]  
+                else:
+                    logits = logits.squeeze(-1)
             for logit in logits.to(torch.device("cpu")).detach():
                 test_predictions.append(logit)
 
     # output 형식을 불러와서 예측된 결과로 바꿔주고, output.csv로 출력합니다.
+
     pearson = torchmetrics.functional.pearson_corrcoef(torch.tensor(val_predictions), torch.tensor(val_labels))
     print("valid pearson = ",pearson)
     test_predictions = list(round(float(i), 1) for i in test_predictions)

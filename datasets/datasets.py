@@ -46,9 +46,12 @@ class KorSTSDatasets(Dataset):
                     sentence_tokens.append(word)
             s2s.append(tokenizer.decode(tokenizer.convert_tokens_to_ids(sentence_tokens)))
         #read stopwords end
-        self.s1 = [tokenizer.encode(s1) for s1 in s1s]
-        self.s2 = [tokenizer.encode(s2) for s2 in s2s]
-                
+        self.s1 = [tokenizer.encode(s) for s in tsv["sentence_1"]]
+        self.s2 = [tokenizer.encode(s) for s in tsv["sentence_2"]]
+
+        #self.s1 = [tokenizer.encode(s) for s in s1s]
+        #self.s2 = [tokenizer.encode(s) for s in s2s]
+          
         rtt_filter = tsv['source'].str.contains('rtt') 
         self.rtt = pd.Series([0] * len(tsv))
         self.rtt[rtt_filter] = 1
@@ -126,7 +129,7 @@ class Collate_fn(object):
                 
             s1_batch = pad_sequence(s1_batches, batch_first=True, padding_value=self.pad_id)
             s2_batch = pad_sequence(s2_batches, batch_first=True, padding_value=self.pad_id)
-            return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels), auxes
+            return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels), torch.stack(auxes, 0)
         else:
             s1 = []
             labels = []
@@ -138,7 +141,7 @@ class Collate_fn(object):
                 auxes.append(aux)
                 
             s1_batch = pad_sequence(s1, batch_first=True, padding_value=self.pad_id)
-            return s1_batch.long(), torch.FloatTensor(labels), auxes
+            return s1_batch.long(), torch.FloatTensor(labels), torch.stack(auxes, 0)
 
 
 def bucket_pair_indices(
