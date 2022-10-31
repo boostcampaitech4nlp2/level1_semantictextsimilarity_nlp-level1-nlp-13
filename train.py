@@ -28,7 +28,7 @@ def main(config):
     print("training on", device)
 
     if not config["test_mode"]:
-        run = wandb.init(project="sentence_bert", entity="nlp-13", config=config, name=config['log_name'], notes=config['notes'])
+        run = wandb.init(project="bert_mlm", entity="nlp-13", config=config, name=config['log_name'], notes=config['notes'])
 
     train_datasets = Datasets[config["model_type"]](config["train_csv"], config["base_model"])
     valid_datasets = Datasets[config["model_type"]](config["valid_csv"], config["base_model"])
@@ -138,7 +138,7 @@ def main(config):
                     logits = model(s1)
                     loss = criterion(logits.transpose(1, 2), label)
                     ppl = torch.exp(loss)
-                    val_ppl += ppl.to(torch.device("cpu")),detach().item()
+                    val_ppl += ppl.to(torch.device("cpu")).detach().item()
                 val_loss += loss.to(torch.device("cpu")).detach().item()
             
             val_loss /= i+1
