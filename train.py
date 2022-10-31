@@ -1,3 +1,4 @@
+from email.policy import strict
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch
@@ -11,6 +12,7 @@ import os
 from set_seed import set_seed
 from transformers import AutoTokenizer
 import torchmetrics
+
 
 from models import SBERT_base_Model, BERT_base_Model, MLM_Model
 from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT, KorSTSDatasets_for_MLM
@@ -28,7 +30,7 @@ def main(config):
     print("training on", device)
 
     if not config["test_mode"]:
-        run = wandb.init(project="bert_mlm", entity="nlp-13", config=config, name=config['log_name'], notes=config['notes'])
+        run = wandb.init(project="sentence_bert", entity="nlp-13", config=config, name=config['log_name'], notes=config['notes'])
 
     train_datasets = Datasets[config["model_type"]](config["train_csv"], config["base_model"])
     valid_datasets = Datasets[config["model_type"]](config["valid_csv"], config["base_model"])
@@ -57,14 +59,20 @@ def main(config):
         
     print("Base model is", config['base_model'])
     if os.path.exists(config["model_load_path"]):
-        model.load_state_dict(torch.load(config["model_load_path"]))
+        try:
+            model.load_state_dict(torch.load(config["model_load_path"]))
+        except:
+            model.load_state_dict(torch.load(config["model_load_path"]), strict=False)
         print("weights loaded from", config["model_load_path"])
     else:
         print("no pretrained weights provided.")
     model.to(device)
 
     epochs = config['epochs']
-    criterion = Criterions[config["model_type"]](ignore_index=0)
+    if config["model_type"] == "MLM":
+        criterion = Criterions[config["model_type"]](ignore_index=0)
+    else:
+        criterion = Criterions[config["model_type"]]()
     
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
 
@@ -173,5 +181,3 @@ if __name__ == "__main__":
         config = yaml.load(f, Loader=yaml.Loader)
 
     main(config)
-    
-print('w')
