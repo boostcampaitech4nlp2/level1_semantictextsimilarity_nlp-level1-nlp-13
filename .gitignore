@@ -7,3 +7,4 @@ results
 sbert_config.yaml
 EDA/output/*
 *.ipynb
+*.csv
