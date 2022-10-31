@@ -1,3 +1,4 @@
+import math
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch
@@ -48,6 +49,7 @@ def main(config):
     valid_loader = DataLoader(
         valid_datasets,
         collate_fn=collate_fn,
+
         batch_size=config['batch_size']
     )
     
@@ -68,6 +70,7 @@ def main(config):
     else:
         print("no pretrained weights provided.")
     model.to(device)
+
 
     epochs = config['epochs']
     if config["model_type"] == "MLM":
@@ -103,6 +106,7 @@ def main(config):
         val_score = 0
         model.eval()
         with torch.no_grad():
+            model.eval()
             for i, data in enumerate(tqdm(valid_loader)):
                 logits, loss, score = valid_step(data, config["model_type"], device, model, criterion, outputEDA)
                 val_loss += loss

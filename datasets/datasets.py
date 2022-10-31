@@ -11,7 +11,7 @@ import random
 
 
 class KorSTSDatasets(Dataset):
-    def __init__(self, dir, model_name):
+    def __init__(self, dir, model_name, stopword=False):
         super(KorSTSDatasets, self).__init__()
         self.tsv = pd.read_csv(dir)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -26,6 +26,40 @@ class KorSTSDatasets(Dataset):
         self.pad_id = self.tokenizer.pad_token_id
         self.sep_id = self.tokenizer.sep_token_id
         self.mask_id = self.tokenizer.mask_token_id
+
+        #read stopwords
+        if stopword:
+            stopwords = []
+            f = open('./stopwords_ver2.txt')
+            lines = f.readlines()
+            for line in lines:
+                if '\n' in line:
+                    stopwords.append(line[:-1])
+
+            s1s = []
+            s2s = []
+
+            for s1 in tsv["sentence_1"]:
+                sentence_tokens = []
+                for word in tokenizer.tokenize(s1):
+                    tmp_word = word
+                    if "##" in word:
+                        tmp_word = word.replace('##', '')
+                    if tmp_word not in stopwords:
+                        sentence_tokens.append(word)
+                s1s.append(tokenizer.decode(tokenizer.convert_tokens_to_ids(sentence_tokens)))
+            for s2 in tsv["sentence_2"]:
+                sentence_tokens = []
+                for word in tokenizer.tokenize(s2):
+                    tmp_word = word
+                    if "##" in word:
+                        tmp_word = word.replace('##', '')
+                    if tmp_word not in stopwords:
+                        sentence_tokens.append(word)
+                s2s.append(tokenizer.decode(tokenizer.convert_tokens_to_ids(sentence_tokens)))
+        #read stopwords end
+            self.s1 = [tokenizer.encode(s1) for s1 in s1s]
+            self.s2 = [tokenizer.encode(s2) for s2 in s2s]
 
     def __len__(self):
         return len(self.s1)
@@ -65,8 +99,8 @@ class KorSTSDatasets(Dataset):
         
 
 class KorSTSDatasets_for_BERT(KorSTSDatasets):
-    def __init__(self, dir, model_name):
-        super(KorSTSDatasets_for_BERT, self).__init__(dir, model_name)
+    def __init__(self, dir, model_name, stopword):
+        super(KorSTSDatasets_for_BERT, self).__init__(dir, model_name, stopword)
 
     def __getitem__(self, idx):
         data = self.s1[idx][:-1] + [self.sep_id] + self.s2[idx][1:]

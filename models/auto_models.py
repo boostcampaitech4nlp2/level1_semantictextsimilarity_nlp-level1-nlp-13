@@ -2,7 +2,6 @@ from transformers import AutoModel, BertForSequenceClassification, AutoModelForS
 import torch.nn as nn
 import torch
 
-
 class SBERT_base_Model(nn.Module):
     def __init__(self, model_name):
         super(SBERT_base_Model, self).__init__()
