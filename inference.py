@@ -32,6 +32,7 @@ def main(config):
     model = Models[config["model_type"]](config["base_model"])
 
     model.load_state_dict(torch.load(config["model_load_path"]))
+    print("model loaded from", config["model_load_path"])
     
     model.to(device)
 

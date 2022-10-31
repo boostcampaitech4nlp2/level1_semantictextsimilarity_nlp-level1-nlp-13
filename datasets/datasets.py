@@ -14,9 +14,9 @@ class KorSTSDatasets(Dataset):
     def __init__(self, dir, model_name):
         super(KorSTSDatasets, self).__init__()
         self.tsv = pd.read_csv(dir)
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.s1 = [tokenizer.encode(s1) for s1 in self.tsv["sentence_1"]]
-        self.s2 = [tokenizer.encode(s2) for s2 in self.tsv["sentence_2"]]
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.s1 = [self.tokenizer.encode(s1) for s1 in self.tsv["sentence_1"]]
+        self.s2 = [self.tokenizer.encode(s2) for s2 in self.tsv["sentence_2"]]
         if "label" in self.tsv.keys():
             self.y = self.tsv["label"]
             self.b_y = self.tsv["binary-label"]
