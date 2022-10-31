@@ -1,8 +1,8 @@
-from email.policy import strict
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch
 from torch.optim import Adam
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import wandb
 import yaml
 import argparse
@@ -13,7 +13,7 @@ import torchmetrics
 
 from models import SBERT_base_Model, BERT_base_Model, BERT_base_NLI_Model, MLM_Model
 from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT, KorNLIDatasets, KorSTSDatasets_for_MLM
-from utils import train_step, valid_step
+from utils import train_step, valid_step, EarlyStopping
 from EDA import OutputEDA
 
 
@@ -26,12 +26,11 @@ def main(config):
     device = torch.device(device)
     print("training on", device)
 
-    if not config["test_mode"]:
-        run = wandb.init(project="sentence_bert", entity="nlp-13", config=config, name=config['log_name'], notes=config['notes'])
-
     train_datasets = Datasets[config["model_type"]](config['train_csv'], config['base_model'])
     valid_datasets = Datasets[config["model_type"]](config['valid_csv'], config['base_model'])
 
+    # EDA
+    outputEDA = OutputEDA(config["base_model"], config["log_name"])
     # get pad_token_id.
     collate_fn = Collate_fn(train_datasets.pad_id, config["model_type"])
 
@@ -53,6 +52,10 @@ def main(config):
     )
     
     model = Models[config["model_type"]](config["base_model"])
+    
+    if not config["test_mode"]:
+        run = wandb.init(project="sentence_bert", entity="nlp-13", config=config, name=config['log_name'], notes=config['notes'])
+        wandb.watch(model, log="all")
 
     print("Base model is", config['base_model'])
     if os.path.exists(config["model_load_path"]):
@@ -74,15 +77,18 @@ def main(config):
     
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
 
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5)
+    if config["model_type"] == "MLM":
+        earlystopping = EarlyStopping(patience=3, verbose=True, mode="min")
+        scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.2, patience=5, verbose=True)
+    else:
+        earlystopping = EarlyStopping(patience=12, verbose=True, mode="max")
+        scheduler = ReduceLROnPlateau(optimizer, 'max', factor=0.2, patience=5, verbose=True)
 
     pbar = tqdm(range(epochs))
 
-    best_val_loss = 1000
-    best_pearson = 0
-
     # training code.
     for epoch in pbar:
+        model.train()
         for iter, data in enumerate(tqdm(train_loader)):
             loss, score = train_step(data, config["model_type"], device, model, criterion, optimizer)
             
@@ -95,22 +101,31 @@ def main(config):
 
         val_loss = 0
         val_score = 0
+        model.eval()
         with torch.no_grad():
             for i, data in enumerate(tqdm(valid_loader)):
-                logits, loss, score = valid_step(data, config["model_type"], device, model, criterion)
+                logits, loss, score = valid_step(data, config["model_type"], device, model, criterion, outputEDA)
                 val_loss += loss
                 val_score += score
 
             val_loss /= (i+1)
             val_score /= (i+1)
             if not config["test_mode"]:
-                if config["model_type"] != "MLM": wandb.log({"valid loss": val_loss, "valid_pearson": val_score})
-                else: wandb.log({"valid loss": val_loss, "valid_PPL": val_score})
+                if config["model_type"] != "MLM": 
+                    wandb.log({"valid loss": val_loss, "valid_pearson": val_score})
+                else: 
+                    wandb.log({"valid loss": val_loss, "valid_PPL": val_score})
 
-            if config["model_type"] == "MLM":
-                if val_loss < best_val_loss: torch.save(model.state_dict(), config["model_save_path"])
-            else:
-                if val_score > best_pearson: torch.save(model.state_dict(), config["model_save_path"])
+            earlystopping(val_score)
+            scheduler.step(val_score)
+            if earlystopping.best_epoch:
+                torch.save(model.state_dict(), config["model_save_path"])
+                print("model saved to ", config["model_save_path"])
+                outputEDA.save(epoch, val_score)
+            outputEDA.reset()
+
+        if earlystopping.earlystop:
+            break
     
 
 if __name__ == "__main__":

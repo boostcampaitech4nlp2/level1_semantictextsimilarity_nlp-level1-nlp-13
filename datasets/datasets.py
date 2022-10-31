@@ -21,6 +21,7 @@ class KorSTSDatasets(Dataset):
             self.y = self.tsv["label"]
         else:
             self.y = None
+        self.rtt, self.source = self.set_eda()
 
         self.pad_id = self.tokenizer.pad_token_id
         self.sep_id = self.tokenizer.sep_token_id
@@ -35,7 +36,33 @@ class KorSTSDatasets(Dataset):
             label = float(self.y[idx])/5
         else:
             label = None
-        return data, label
+            
+        aux = self.get_aux(idx)
+        
+        return data, label, aux
+    
+    def set_eda(self):
+        rtt_filter = self.tsv['source'].str.contains('rtt') 
+        rtt = pd.Series([0] * len(self.tsv))
+        rtt[rtt_filter] = 1
+        
+        nsmc_filter = self.tsv['source'].str.contains('nsmc')    
+        petition_filter = self.tsv['source'].str.contains('petition') 
+        slack_filter = self.tsv['source'].str.contains('slack') 
+        source = pd.Series([0] * len(self.tsv))
+        source[nsmc_filter] = 0
+        source[petition_filter] = 1
+        source[slack_filter] = 2
+        
+        return rtt, source
+    
+    def get_aux(self, idx):
+        rtt = torch.tensor([self.rtt[idx]], dtype=torch.long)
+        source = torch.tensor(self.source[idx], dtype=torch.long)
+        source = torch.nn.functional.one_hot(source, 3)
+        aux = torch.cat([source, rtt])
+        return aux
+        
 
 class KorSTSDatasets_for_BERT(KorSTSDatasets):
     def __init__(self, dir, model_name):
@@ -48,8 +75,10 @@ class KorSTSDatasets_for_BERT(KorSTSDatasets):
             label = float(self.y[idx])/5
         else:
             label = None
+            
+        aux = self.get_aux(idx)
 
-        return data, label
+        return data, label, aux
 
 class KorNLIDatasets(KorSTSDatasets):
     def __init__(self, dir, model_name):
@@ -62,8 +91,10 @@ class KorNLIDatasets(KorSTSDatasets):
             label = 1 if self.y[idx] > 0.5 else 0
         else:
             label = None
+            
+        aux = self.get_aux(idx)
 
-        return data, label
+        return data, label, aux
 
 class KorSTSDatasets_for_MLM(KorSTSDatasets):
     def __init__(self, dir, model_name):
@@ -105,29 +136,33 @@ class Collate_fn(object):
             s1_batches = []
             s2_batches = []
             labels = []
+            auxes = []
             for b in batch:
-                data, label = b
+                data, label, aux = b
                 s1, s2 = data
                 s1_batches.append(s1)
                 s2_batches.append(s2)
                 labels.append(label)
+                auxes.append(aux)
                 
             s1_batch = pad_sequence(s1_batches, batch_first=True, padding_value=self.pad_id)
             s2_batch = pad_sequence(s2_batches, batch_first=True, padding_value=self.pad_id)
             if label != None:
-                return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels)
+                return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels), torch.stack(auxes, 0)
             else:
                 return s1_batch.long(), s2_batch.long(), None
         elif self.model_type in ["BERT", "BERT_NLI"]:
             s1 = []
             labels = []
+            auxes = []
             for b in batch:
-                data, label = b
+                data, label, aux = b
                 s1.append(data)
                 labels.append(label)
+                auxes.append(aux)
             s1_batch = pad_sequence(s1, batch_first=True, padding_value=self.pad_id)
             if label != None:
-                return s1_batch.long(), torch.FloatTensor(labels)
+                return s1_batch.long(), torch.FloatTensor(labels), torch.stack(auxes, 0)
             else:
                 return s1_batch.long(), None
         elif self.model_type == "MLM":
