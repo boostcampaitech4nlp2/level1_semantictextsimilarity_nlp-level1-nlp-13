@@ -16,42 +16,9 @@ class KorSTSDatasets(Dataset):
         super(KorSTSDatasets, self).__init__()
         tsv = pd.read_csv(dir)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
-        #read stopwords
-        stopwords = []
-        f = open('./stopwords_ver2.txt')
-        lines = f.readlines()
-        for line in lines:
-            if '\n' in line:
-                stopwords.append(line[:-1])
-
-        s1s = []
-        s2s = []
-
-        for s1 in tsv["sentence_1"]:
-            sentence_tokens = []
-            for word in tokenizer.tokenize(s1):
-                tmp_word = word
-                if "##" in word:
-                    tmp_word = word.replace('##', '')
-                if tmp_word not in stopwords:
-                    sentence_tokens.append(word)
-            s1s.append(tokenizer.decode(tokenizer.convert_tokens_to_ids(sentence_tokens)))
-        for s2 in tsv["sentence_2"]:
-            sentence_tokens = []
-            for word in tokenizer.tokenize(s2):
-                tmp_word = word
-                if "##" in word:
-                    tmp_word = word.replace('##', '')
-                if tmp_word not in stopwords:
-                    sentence_tokens.append(word)
-            s2s.append(tokenizer.decode(tokenizer.convert_tokens_to_ids(sentence_tokens)))
-        #read stopwords end
         self.s1 = [tokenizer.encode(s) for s in tsv["sentence_1"]]
         self.s2 = [tokenizer.encode(s) for s in tsv["sentence_2"]]
 
-        #self.s1 = [tokenizer.encode(s) for s in s1s]
-        #self.s2 = [tokenizer.encode(s) for s in s2s]
-          
         rtt_filter = tsv['source'].str.contains('rtt') 
         self.rtt = pd.Series([0] * len(tsv))
         self.rtt[rtt_filter] = 1

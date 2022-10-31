@@ -14,39 +14,11 @@ from set_seed import set_seed
 from transformers import AutoTokenizer
 import torchmetrics
 
-from models import SBERT_base_Model, BERT_base_Model, BERT_focal_Model
+from models import SBERT_base_Model, BERT_base_Model
 from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT
 from EDA import OutputEDA
 
 
-class FocalMSELoss(nn.Module): # for imbalanced data
-    def __init__(self, num_class=5, alpha=1, gamma=2,  logits=False, reduction='sum'):
-        super(FocalMSELoss, self).__init__()
-        self.alpha = alpha
-        self.gamma = gamma
-        self.num_class = num_class
-        self.reduction = reduction
-        
-        if logits:
-            raise ValueError 
-
-    def forward(self, inputs, targets):
-        mse_func = nn.MSELoss(reduce=False)
-        mse_loss = mse_func(inputs[:, 0], targets)
-        return torch.dot(mse_loss, 1/(2.5 + abs(inputs[:, 0]-2.5)))
-    
-        _targets = torch.floor(targets*0.999).long()
-        cat_targets = nn.functional.one_hot(_targets, num_classes=5) # (B) -> (B, class)    
-        ce_loss = nn.CrossEntropyLoss(reduction='none')(inputs[:, 1:].float(), cat_targets.float())
-        
-        pt = torch.exp(-ce_loss)
-        F_loss = self.alpha * (1-pt)**self.gamma * ce_loss * mse_loss
-
-        if self.reduction == 'sum':
-            return torch.sum(F_loss)
-        else:
-            return F_loss
-        
 class EarlyStopping:
     def __init__(self, path, patience=5, verbose=False, mode="min"):
         self.path = path
@@ -93,7 +65,7 @@ def main(config):
     if config["model_type"] == "SBERT":
         train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'])
         valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'])
-    elif config["model_type"] == "BERT" or "FBERT":
+    elif config["model_type"] == "BERT":
         train_datasets = KorSTSDatasets_for_BERT(config['train_csv'], config['base_model'])
         valid_datasets = KorSTSDatasets_for_BERT(config['valid_csv'], config['base_model'])
     else:
@@ -124,8 +96,6 @@ def main(config):
 
     if config["model_type"] == "SBERT":
         model = SBERT_base_Model(config["base_model"])
-    elif config["model_type"] == "FBERT":
-        model = BERT_focal_Model(config["base_model"], config["focal_loss_class"])
     else:
         model = BERT_base_Model(config["base_model"])
     
@@ -143,11 +113,10 @@ def main(config):
 
 
     epochs = config['epochs']
-    criterion = FocalMSELoss(config["focal_loss_class"])
+    criterion = nn.MSELoss()
     
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
     scheduler = ReduceLROnPlateau(optimizer, 'max', factor=0.2, patience=5, verbose=True)
-    
     earlystopping = EarlyStopping(config['model_save_path'], patience=12, verbose=True, mode="max")
     pbar = tqdm(range(epochs))
 
@@ -167,12 +136,8 @@ def main(config):
                 aux = aux.to(device)
                 logits = model(s1, aux)
                 s2 = None
-            if config["model_type"] == "FBERT":
-                pred = logits
-                pearson = torchmetrics.functional.pearson_corrcoef(pred[:, 0], label.squeeze())
-            else:
-                pred = logits.squeeze(-1) 
-                pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
+            pred = logits.squeeze(-1) 
+            pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
                 
             loss = criterion(pred, label)
             optimizer.zero_grad()
@@ -199,18 +164,12 @@ def main(config):
                     s1 = s1.to(device)
                     label = label.to(device)
                     aux = aux.to(device)
-                    logits = model(s1, aux)
-                    
+                    logits = model(s1, aux)    
                     s2 = None 
                     
-                if config["model_type"] == "FBERT":
-                    pred = logits
-                    pearson = torchmetrics.functional.pearson_corrcoef(pred[:, 0], label.squeeze())
-                    outputEDA.appendf(label, pred[:, 0], aux, s1, s2)
-                else:
-                    pred = logits.squeeze(-1) 
-                    pearson = torchmetrics.functional.pearson_corrcoef(logits.squeeze(), label.squeeze())
-                    outputEDA.appendf(label, pred, aux, s1, s2)
+                pred = logits.squeeze(-1) 
+                pearson = torchmetrics.functional.pearson_corrcoef(pred, label.squeeze())
+                outputEDA.appendf(label, pred, aux, s1, s2)
                 
                 loss = criterion(pred, label)
                 val_loss += loss.to(torch.device("cpu")).detach().item()

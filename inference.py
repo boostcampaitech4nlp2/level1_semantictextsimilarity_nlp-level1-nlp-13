@@ -13,7 +13,7 @@ from transformers import AutoTokenizer
 import torchmetrics
 import pandas as pd
 
-from models import SBERT_base_Model, BERT_base_Model, BERT_focal_Model
+from models import SBERT_base_Model, BERT_base_Model
 from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT
 
 
@@ -41,10 +41,7 @@ if __name__ == '__main__':
         collate_fn=collate_fn,
         batch_size=64,
     )
-    if args.model_type == "FBERT":   
-        model = BERT_focal_Model(args.model_name)
-    else:
-        model = BERT_focal_Model(args.model_name)
+    model = BERT_base_Model(args.model_name)
     model.load_state_dict(torch.load(args.model_path))
     print("weights loaded from", args.model_path)
     model.to(device)
@@ -67,10 +64,7 @@ if __name__ == '__main__':
                 label = label.to(device)
                 aux = aux.to(device)
                 logits = model(s1, aux)
-                if args.model_type == "FBERT":   
-                    logits = logits[:, 0]
-                else:
-                    logits = logits.squeeze(-1)
+                logits = logits.squeeze(-1)
             for logit in logits.to(torch.device("cpu")).detach():
                 val_predictions.append(logit)
             for lab in label.to(torch.device("cpu")).detach(): 

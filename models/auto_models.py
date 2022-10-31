@@ -9,7 +9,7 @@ class SBERT_base_Model(nn.Module):
         self.linear = nn.Linear(self.bert.config.hidden_size*2, 1)
         self.similarity = nn.CosineSimilarity(dim=-1)
 
-    def forward(self, src_ids, tgt_ids):
+    def forward(self, src_ids, tgt_ids, aux):
         u = self.bert(src_ids).last_hidden_state
         v = self.bert(tgt_ids).last_hidden_state
         u = torch.mean(u, dim=1)
@@ -18,22 +18,6 @@ class SBERT_base_Model(nn.Module):
         outputs = self.linear(attn_outputs)
 
         return outputs
-
-
-class BERT_focal_Model(nn.Module):
-    def __init__(self, model_name, num_class=5):
-        super(BERT_focal_Model, self).__init__()
-        self.bert = AutoModel.from_pretrained(model_name)
-        self.linear1 = nn.Linear(self.bert.config.hidden_size + 4, 16)
-        self.linear2 = nn.Linear(16, num_class+1)
-
-    def forward(self, src_ids, aux):
-        attn_outputs = self.bert(src_ids)
-        pooler_output = attn_outputs[1]
-        merged_output = torch.cat((pooler_output, aux), dim=-1)
-        outout = self.linear1(merged_output)
-        final_out = self.linear2(outout)
-        return final_out
 
 
 class BERT_base_Model(nn.Module):
