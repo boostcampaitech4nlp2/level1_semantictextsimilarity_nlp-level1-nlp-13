@@ -27,10 +27,11 @@ if __name__ == '__main__':
     parser.add_argument('--model_path', default='results/klue-roberta-large2.pt', type=str)
     parser.add_argument('--valid_path', default='NLP_dataset/han_processed_dev.csv', type=str)
     parser.add_argument('--test_path', default='NLP_dataset/han_processed_test.csv', type=str)
+    parser.add_argument('--stopword',default=False)
     args = parser.parse_args()
 
-    test_datasets = KorSTSDatasets_for_BERT(args.test_path, args.model_name)
-    valid_datasets = KorSTSDatasets_for_BERT(args.valid_path, args.model_name)
+    test_datasets = KorSTSDatasets_for_BERT(args.test_path, args.model_name, args.stopword)
+    valid_datasets = KorSTSDatasets_for_BERT(args.valid_path, args.model_name, args.stopword)
     collate_fn = Collate_fn(test_datasets.pad_id, args.model_name)
 
     test_loader = DataLoader(
@@ -95,5 +96,5 @@ if __name__ == '__main__':
             test_predictions[i] = 5.0
     output = pd.read_csv('NLP_dataset/sample_submission.csv')
     output['target'] = test_predictions
-    output.to_csv('output0.csv', index=False)
+    output.to_csv('output.csv', index=False)
  

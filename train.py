@@ -63,11 +63,11 @@ def main(config):
     
     
     if config["model_type"] == "SBERT":
-        train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'])
-        valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'])
+        train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'], config['stopword'])
+        valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'], config['stopword'])
     elif config["model_type"] == "BERT":
-        train_datasets = KorSTSDatasets_for_BERT(config['train_csv'], config['base_model'])
-        valid_datasets = KorSTSDatasets_for_BERT(config['valid_csv'], config['base_model'])
+        train_datasets = KorSTSDatasets_for_BERT(config['train_csv'], config['base_model'], config['stopword'])
+        valid_datasets = KorSTSDatasets_for_BERT(config['valid_csv'], config['base_model'], config['stopword'])
     else:
         print("Model type should be 'BERT' or 'SBERT'!")
         return
