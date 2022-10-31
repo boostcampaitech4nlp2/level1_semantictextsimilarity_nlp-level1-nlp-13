@@ -9,7 +9,6 @@ from tqdm import tqdm
 import numpy as np
 import os
 from set_seed import set_seed
-from transformers import AutoTokenizer
 import torchmetrics
 
 from models import SBERT_base_Model, BERT_base_Model, BERT_base_NLI_Model
@@ -18,7 +17,7 @@ from EDA import OutputEDA
 
 
 Models = {"BERT": BERT_base_Model, "SBERT": SBERT_base_Model, "BERT_NLI": BERT_base_NLI_Model}
-Datasets = {"BERT": KorSTSDatasets_for_BERT, "SBERT": KorSTSDatasets_for_BERT, "BERT_NLI": KorNLIDatasets}
+Datasets = {"BERT": KorSTSDatasets_for_BERT, "SBERT": KorSTSDatasets_for_BERT, "BERT_NLI": KorSTSDatasets_for_BERT}
 Losses = {"MAE": nn.L1Loss, "MSE": nn.MSELoss, "BCE": nn.BCELoss}
 
 def main(config):
@@ -55,9 +54,14 @@ def main(config):
     model = Models[config["model_type"]](config["base_model"])
         
     print("Base model is", config['base_model'])
-    if os.path.exists(config["model_load_path"]):
-        model.load_state_dict(torch.load(config["model_load_path"]))
-        print("weights loaded from", config["model_load_path"])
+    model_pth = config["model_load_path"]
+    if os.path.exists(model_pth):
+        if "nli" in model_pth.lower():
+            # TODO : load weights without last linear layer
+            model.load_state_dict(torch.load(model_pth))
+        else:
+            model.load_state_dict(torch.load(model_pth))
+        print("weights loaded from", model_pth)
     else:
         print("no pretrained weights provided.")
     model.to(device)

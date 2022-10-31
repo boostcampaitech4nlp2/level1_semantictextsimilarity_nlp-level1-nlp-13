@@ -15,7 +15,7 @@ Models = {"SBERT": SBERT_base_Model, "BERT": BERT_base_Model}
 
 
 def main(config):
-    device = torch.device("cuda") if torch.cuda.is_available else toch.device("cpu")
+    device = torch.device("cuda") if torch.cuda.is_available else torch.device("cpu")
 
     print("prepare datasets")
     datasets = Datasets[config["model_type"]](config["test_csv"], config["base_model"])
@@ -32,7 +32,7 @@ def main(config):
     model = Models[config["model_type"]](config["base_model"])
 
     model.load_state_dict(torch.load(config["model_load_path"]))
-
+    
     model.to(device)
 
     model.eval()
@@ -54,7 +54,7 @@ def main(config):
                 preds += list(pred)
 
     output = pd.read_csv("NLP_dataset/sample_submission.csv")
-    preds = [round(np.clip(p, 0, 5), 1) for p in preds]
+    preds = [round(np.clip(p*5, 0, 5), 1) for p in preds]
     output['target'] = preds
     output.to_csv("output.csv", index=False)
 

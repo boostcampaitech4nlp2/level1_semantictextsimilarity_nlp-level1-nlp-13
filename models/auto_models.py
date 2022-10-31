@@ -26,7 +26,7 @@ class BERT_base_Model(nn.Module):
             self.bert = RobertaForSequenceClassification.from_pretrained(model_name, num_labels=1)
         else:
             self.bert = BertForSequenceClassification.from_pretrained(model_name, num_labels=1)
-        self.linear = nn.Linear(self.bert.config.hidden_size, 1)
+        # self.linear = nn.Linear(self.bert.config.hidden_size, 1)
         self.similarity = nn.CosineSimilarity(dim=-1)
 
     def forward(self, src_ids):

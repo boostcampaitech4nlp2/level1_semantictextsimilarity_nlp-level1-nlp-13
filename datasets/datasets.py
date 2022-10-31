@@ -46,7 +46,7 @@ class KorSTSDatasets_for_BERT(KorSTSDatasets):
         data = self.s1[idx][:-1] + [self.sep_id] + self.s2[idx][1:]
         data = torch.IntTensor(data)
         if "label" in self.tsv.keys():
-            label = float(self.y[idx])
+            label = float(self.y[idx])/5
         else:
             label = None
 
