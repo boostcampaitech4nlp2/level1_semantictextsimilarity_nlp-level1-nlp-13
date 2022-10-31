@@ -1,6 +1,6 @@
 from models import SBERT_base_Model, BERT_base_Model, BERT_base_NLI_Model
 from datasets import KorSTSDatasets, Collate_fn, KorSTSDatasets_for_BERT, KorNLIDatasets
-from utils import train_step, valid_step
+from utils import test_step
 
 from torch.utils.data import DataLoader
 import torch
@@ -14,7 +14,6 @@ import pandas as pd
 
 Datasets = {"SBERT": KorSTSDatasets, "BERT": KorSTSDatasets_for_BERT, "BERT_NLI": KorNLIDatasets}
 Models = {"SBERT": SBERT_base_Model, "BERT": BERT_base_Model, "BERT_NLI": BERT_base_NLI_Model}
-Criterions = {"MAE": nn.L1Loss, "MSE": nn.MSELoss, "BCE": nn.BCELoss, "CE": nn.NLLLoss}
 
 def main(config):
     device = torch.device("cuda") if torch.cuda.is_available else torch.device("cpu")
@@ -39,15 +38,12 @@ def main(config):
     model.to(device)
 
     model.eval()
-    if config["loss"] == "CE":
-        criterion = Criterions[config["loss"]](ignore_index=0)
-    else:
-        criterion = Criterions[config["loss"]]()
+
     preds = []
 
     with torch.no_grad():
         for data in tqdm(data_loader):
-            pred, loss, score = valid_step(data, config["model_type"], device, model, criterion, None)
+            pred = test_step(data, config["model_type"], device, model)
             pred = pred.to(torch.device("cpu")).detach().numpy().flatten()
             preds += list(pred)
 

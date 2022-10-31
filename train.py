@@ -56,7 +56,8 @@ def main(config):
     model = Models[config["model_type"]](config["base_model"])
     
     if not config["test_mode"]:
-        run = wandb.init(project="sentence_bert", entity="nlp-13", config=config, 
+        pj = "bert-mlm" if config["model_type"] == "MLM" else "sentence_bert"
+        run = wandb.init(project=pj, entity="nlp-13", config=config, 
                          name=config['log_name'], notes=config['notes'])
         wandb.watch(model, log="all")
 

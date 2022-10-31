@@ -51,3 +51,16 @@ def valid_step(data, model_type, device, model, criterion, outputEDA):
     score = score.detach().item()
     
     return logits, loss, score
+
+def test_step(data, model_type, device, model):
+    if model_type == "SBERT":
+        s1, s2, label = data
+        s1 = s1.to(device)
+        s2 = s2.to(device)
+        logits = model(s1, s2).squeeze()
+    else:
+        s1, label = data
+        s1 = s1.to(device)
+        logits = model(s1).squeeze()
+    
+    return logits
