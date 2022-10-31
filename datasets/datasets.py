@@ -3,7 +3,6 @@ import torch
 import numpy as np
 import pandas as pd
 from torch.nn.utils.rnn import pad_sequence
-from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 
 from collections import defaultdict
@@ -24,8 +23,9 @@ class KorSTSDatasets(Dataset):
         else:
             self.y = None
 
-        self.pad_id = tokenizer.pad_token_id
-        self.sep_id = tokenizer.sep_token_id
+        self.pad_id = self.tokenizer.pad_token_id
+        self.sep_id = self.tokenizer.sep_token_id
+        self.mask_id = self.tokenizer.mask_token_id
 
     def __len__(self):
         return len(self.s1)
@@ -66,6 +66,30 @@ class KorNLIDatasets(KorSTSDatasets):
 
         return data, label
 
+class KorSTSDatasets_for_MLM(KorSTSDatasets):
+    def __init__(self, dir, model_name):
+        super(KorSTSDatasets_for_MLM, self).__init__(dir, model_name)
+        self.sentences = self.s1 + self.s2
+
+    def __getitem__(self, idx):
+        sentence = self.sentences[idx]
+        label = torch.zeros(len(sentence)).int()
+        for i, s in enumerate(sentence):
+            masking = random.random()
+            if masking < 0.15:
+                label[i] = sentence[i]
+                masking /= 0.15
+                if masking < 0.8:
+                    sentence[i] = self.mask_id
+                elif masking < 0.9:
+                    sentence[i] = random.randrange(self.tokenizer.vocab_size)
+                else:
+                    sentence[i] = sentence[i]
+        sentence = torch.IntTensor(sentence)
+        label = torch.IntTensor(label)
+
+        return sentence, label
+
 class Collate_fn(object):
     def __init__(self, pad_id=0, model_type="SBERT"):
         self.pad_id = pad_id
@@ -90,7 +114,7 @@ class Collate_fn(object):
                 return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels)
             else:
                 return s1_batch.long(), s2_batch.long(), None
-        else:
+        elif self.model_type == "BERT":
             s1 = []
             labels = []
             for b in batch:
@@ -102,6 +126,16 @@ class Collate_fn(object):
                 return s1_batch.long(), torch.FloatTensor(labels)
             else:
                 return s1_batch.long(), None
+        elif self.model_type == "MLM":
+            inputs = []
+            labels = []
+            for b in batch:
+                x, y = b
+                inputs.append(x)
+                labels.append(y)
+            inputs = pad_sequence(inputs, batch_first=True, padding_value=self.pad_id)
+            labels = pad_sequence(labels, batch_first=True, padding_value=self.pad_id)
+            return inputs.long(), labels.long()
 
 def bucket_pair_indices(
     sentence_length: List[Tuple[int, int]],
