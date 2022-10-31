@@ -63,11 +63,11 @@ def main(config):
     
     
     if config["model_type"] == "SBERT":
-        train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'])
-        valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'])
+        train_datasets = KorSTSDatasets(config['train_csv'], config['base_model'], config['stopword'])
+        valid_datasets = KorSTSDatasets(config['valid_csv'], config['base_model'], config['stopword'])
     elif config["model_type"] == "BERT":
-        train_datasets = KorSTSDatasets_for_BERT(config['train_csv'], config['base_model'])
-        valid_datasets = KorSTSDatasets_for_BERT(config['valid_csv'], config['base_model'])
+        train_datasets = KorSTSDatasets_for_BERT(config['train_csv'], config['base_model'], config['stopword'])
+        valid_datasets = KorSTSDatasets_for_BERT(config['valid_csv'], config['base_model'], config['stopword'])
     else:
         print("Model type should be 'BERT' or 'SBERT'!")
         return
@@ -121,6 +121,7 @@ def main(config):
     pbar = tqdm(range(epochs))
 
     for epoch in pbar:
+        model.train()
         for iter, data in enumerate(tqdm(train_loader)):
              #TODO : USE aux data [(one hot )]
             if config["model_type"] == "SBERT":
@@ -151,6 +152,7 @@ def main(config):
         val_loss = 0
         val_pearson = 0
         with torch.no_grad():
+            model.eval()
             for i, data in enumerate(tqdm(valid_loader)):
                 if config["model_type"] == "SBERT":
                     s1, s2, label, aux = data
