@@ -27,8 +27,8 @@ def main(config):
     device = torch.device(device)
     print("training on", device)
 
-    train_datasets = Datasets[config["model_type"]](config['train_csv'], config['base_model'])
-    valid_datasets = Datasets[config["model_type"]](config['valid_csv'], config['base_model'])
+    train_datasets = Datasets[config["model_type"]](config['train_csv'], config['base_model'], config["stopword"])
+    valid_datasets = Datasets[config["model_type"]](config['valid_csv'], config['base_model'], config["stopword"])
 
     # EDA
     outputEDA = OutputEDA(config["base_model"], config["log_name"])
