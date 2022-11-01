@@ -53,13 +53,13 @@ class KorSTSDatasets(Dataset):
         return data, label, aux
     
     def set_eda(self):
-        rtt_filter = self.tsv['source'].str.contains('rtt') 
+        rtt_filter = self.tsv['source'].str.contains('rtt')
         rtt = pd.Series([0] * len(self.tsv))
         rtt[rtt_filter] = 1
         
         nsmc_filter = self.tsv['source'].str.contains('nsmc')    
         petition_filter = self.tsv['source'].str.contains('petition') 
-        slack_filter = self.tsv['source'].str.contains('slack') 
+        slack_filter = self.tsv['source'].str.contains('slack')
         source = pd.Series([0] * len(self.tsv))
         source[nsmc_filter] = 0
         source[petition_filter] = 1
