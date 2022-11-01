@@ -3,7 +3,15 @@ from pathlib import Path
 import wandb
 import pandas as pd
 import os
-# TODO : Tokenizer를 Dataset에 의존적으로 설정.
+import datetime
+
+
+def get_time():
+    now = str(datetime.datetime.now())
+    date, time = now.split(" ")
+    y, m, d = date.split("-")
+    time = time.split(".")[0]
+    return y[2:]+m+d+"-"+time
 
 
 class OutputEDA():
@@ -46,17 +54,17 @@ class OutputEDA():
         self.source = []
 
     def save(self, epoch, val_pearson=None):
-        try:
-            data = {'s1': self.s1,
-                    's2': self.s2,
-                    'label': self.label,
-                    'pred': self.pred,
-                    'rtt': self.rtt,
-                    'source': self.source}
-            output = pd.DataFrame(data)
-            if not os.path.exists('EDA/output/'):
-                    os.makedirs('EDA/output/') 
-            wandb.log({"table": output})
-            output.to_csv(f'EDA/output/{self.file_header}_e{epoch}_{val_pearson:.3f}.csv')
-        except Exception as e:
-            print(e)
+        data = {'s1': self.s1,
+                's2': self.s2,
+                'label': self.label,
+                'pred': self.pred,
+                'rtt': self.rtt,
+                'source': self.source}
+        output = pd.DataFrame(data)
+        if not os.path.exists('EDA/output/'):
+            os.makedirs('EDA/output/')
+        wandb.log({"table": output})
+        time = get_time()
+        filename = f'EDA/output/{self.file_header}_e{epoch}_{time}.csv'
+        output.to_csv(filename)
+        print("EDA saved to ", filename)

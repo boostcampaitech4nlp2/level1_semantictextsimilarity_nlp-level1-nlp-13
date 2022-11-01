@@ -1,4 +1,3 @@
-import torch
 import math
 
 class EarlyStopping:
@@ -18,6 +17,8 @@ class EarlyStopping:
             raise ValueError("mode can be 'min' or 'max' only.")
 
     def __call__(self, cur_ref):
+        if cur_ref < 0:
+            return
         if (self.mode == "max" and cur_ref > self.ref) \
             or (self.mode == "min" and cur_ref < self.ref):      
                 if self.verbose:
@@ -32,4 +33,3 @@ class EarlyStopping:
                 if self.verbose:
                     print('earlystopping')   
                 self.earlystop = True
-                
