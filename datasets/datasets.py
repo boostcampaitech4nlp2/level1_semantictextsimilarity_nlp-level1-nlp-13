@@ -135,6 +135,14 @@ class KorSTSDatasets_for_MLM(KorSTSDatasets):
         label = torch.IntTensor(label)
 
         return sentence, label
+    
+class KorSTSDatasets_for_SimCSE(KorSTSDatasets):
+    def __init__(self, dir, model_name, stopword=False):
+        super(KorSTSDatasets_for_SimCSE, self).__init__(dir, model_name, stopword)
+        self.sentences = self.s1 + self.s2
+        
+    def __getitem__(self, idx):
+        return torch.IntTensor(self.sentences[idx])
 
 class Collate_fn(object):
     def __init__(self, pad_id=0, model_type="SBERT"):
@@ -185,6 +193,11 @@ class Collate_fn(object):
                 labels.append(y)
             inputs = pad_sequence(inputs, batch_first=True, padding_value=self.pad_id)
             labels = pad_sequence(labels, batch_first=True, padding_value=self.pad_id)
+            return inputs.long(), labels.long()
+        elif self.model_type == "SimCSE":
+            inputs = [b for b in batch]
+            labels = torch.arange(len(inputs))
+            inputs = pad_sequence(inputs, batch_first=True, padding_value=self.pad_id)
             return inputs.long(), labels.long()
 
 def bucket_pair_indices(

@@ -1,4 +1,3 @@
-import math
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch
@@ -10,17 +9,16 @@ import argparse
 from tqdm import tqdm
 import os
 from set_seed import set_seed
-import torchmetrics
 
-from models import SBERT_base_Model, BERT_base_Model, BERT_base_NLI_Model, MLM_Model
-from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT, KorNLIDatasets, KorSTSDatasets_for_MLM
+from models import *
+from datasets import *
 from utils import train_step, valid_step, EarlyStopping
 from EDA import OutputEDA
 
 
-Models = {"BERT": BERT_base_Model, "SBERT": SBERT_base_Model, "BERT_NLI": BERT_base_NLI_Model, "MLM": MLM_Model}
-Datasets = {"BERT": KorSTSDatasets_for_BERT, "SBERT": KorSTSDatasets, "BERT_NLI": KorNLIDatasets, "MLM": KorSTSDatasets_for_MLM}
-Criterions = {"MAE": nn.L1Loss, "MSE": nn.MSELoss, "BCE": nn.BCELoss, "CE": nn.NLLLoss}
+Models = {"BERT": BERT_base_Model, "SBERT": SBERT_base_Model, "BERT_NLI": BERT_base_NLI_Model, "MLM": MLM_Model, "SimCSE": SimCSE}
+Datasets = {"BERT": KorSTSDatasets_for_BERT, "SBERT": KorSTSDatasets, "BERT_NLI": KorNLIDatasets, "MLM": KorSTSDatasets_for_MLM, "SimCSE": KorSTSDatasets_for_SimCSE}
+Criterions = {"MAE": nn.L1Loss, "MSE": nn.MSELoss, "BCE": nn.BCELoss, "NLL": nn.NLLLoss, "CE": nn.CrossEntropyLoss}
 
 def main(config):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -53,7 +51,7 @@ def main(config):
         batch_size=config['batch_size']
     )
     
-    model = Models[config["model_type"]](config["base_model"])
+    model = Models[config["model_type"]](config["base_model"], config["dropout_prob"])
     
     if not config["test_mode"]:
         pj = "bert-mlm" if config["model_type"] == "MLM" else "sentence_bert"
@@ -82,7 +80,7 @@ def main(config):
     
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
 
-    if config["model_type"] == "MLM":
+    if config["model_type"] in ["MLM", "SimCSE"]:
         earlystopping = EarlyStopping(patience=config["early_stopping_patience"], verbose=True, mode="min")
         scheduler = ReduceLROnPlateau(optimizer, 'min', factor=config["lr_scheduler_factor"], 
                                       patience=config["lr_scheduler_patience"], verbose=True)
@@ -123,9 +121,12 @@ def main(config):
                     wandb.log({"valid loss": val_loss, "valid_pearson": val_score})
                 else: 
                     wandb.log({"valid loss": val_loss, "valid_PPL": val_score})
-
-            earlystopping(val_score)
-            scheduler.step(val_score)
+            if config["watch_metrics"] == "loss":
+                earlystopping(val_loss)
+                scheduler.step(val_loss)
+            else:
+                earlystopping(val_score)
+                scheduler.step(val_score)
             if earlystopping.best_epoch:
                 torch.save(model.state_dict(), config["model_save_path"])
                 print("model saved to ", config["model_save_path"])
