@@ -23,16 +23,24 @@ def step(data, model_type, device, model, criterion, outputEDA=None):
         loss = criterion(logits.transpose(1, 2), label)
         score = torch.exp(loss)
         
-    elif model_type in ["BERT", "BERT_NLI"]:
+    elif model_type == "BERT":
         s1, label, aux = data
         s1 = s1.to(device)
         label = label.to(device)
         logits = model(s1).squeeze()
-        loss = criterion(logits.squeeze(-1), label)
+        loss = criterion(logits, label)
         score = torchmetrics.functional.pearson_corrcoef(logits, label.squeeze())
     
         if outputEDA != None:
             outputEDA.appendf(label, logits, aux, s1, None)
+            
+    elif model_type == "BERT_NLI":
+        s1, label, aux = data
+        s1 = s1.to(device)
+        label = label.to(device)
+        logits = model(s1).squeeze()
+        loss = criterion(logits, label)
+        score = torch.sum(torch.max(logits, dim=1).indices == label) / s1.shape[0]
             
     elif model_type == "SimCSE":
         s1, label = data

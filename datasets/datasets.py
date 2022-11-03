@@ -83,7 +83,7 @@ class KorSTSDatasets_for_BERT(KorSTSDatasets):
         data = self.s1[idx][:-1] + [self.sep_id] + self.s2[idx][1:]
         data = torch.IntTensor(data)
         if "label" in self.tsv.keys():
-            label = float(self.y[idx])/5
+            label = float(self.y[idx])
         else:
             label = None
             
@@ -99,7 +99,7 @@ class KorNLIDatasets(KorSTSDatasets):
         data = self.s1[idx][:-1] + [self.sep_id] + self.s2[idx][1:]
         data = torch.IntTensor(data)
         if "label" in self.tsv.keys():
-            label = 1 if self.y[idx] > 0.5 else 0
+            label = 1 if self.y[idx] > 2.5 else 0
         else:
             label = None
             
@@ -181,7 +181,9 @@ class Collate_fn(object):
                 auxes.append(aux)
             s1_batch = pad_sequence(s1, batch_first=True, padding_value=self.pad_id)
             if label != None:
-                return s1_batch.long(), torch.FloatTensor(labels), torch.stack(auxes, 0)
+                if self.model_type == "BERT":
+                    return s1_batch.long(), torch.FloatTensor(labels), torch.stack(auxes, 0)
+                return s1_batch.long(), torch.LongTensor(labels), torch.stack(auxes, 0)
             else:
                 return s1_batch.long(), None
         elif self.model_type == "MLM":

@@ -2,6 +2,7 @@ from transformers import AutoModel, BertForSequenceClassification, AutoModelForS
 import torch.nn as nn
 import torch
 
+
 class SBERT_base_Model(nn.Module):
     def __init__(self, model_name, dropout_prob):
         super(SBERT_base_Model, self).__init__()
@@ -34,12 +35,10 @@ class BERT_base_Model(nn.Module):
 class BERT_base_NLI_Model(nn.Module):
     def __init__(self, model_name, dropout_prob):
         super(BERT_base_NLI_Model, self).__init__()
-        self.bert = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=1, hidden_dropout_prob=dropout_prob)
-        self.sigmoid = nn.Sigmoid()
+        self.bert = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2, hidden_dropout_prob=dropout_prob)
         
     def forward(self, src_ids):
         outputs = self.bert(src_ids).logits
-        outputs = self.sigmoid(outputs)
         
         return outputs
     

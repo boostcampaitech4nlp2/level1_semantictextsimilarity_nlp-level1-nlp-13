@@ -80,7 +80,7 @@ def main(config):
     
     optimizer = Adam(params=model.parameters(), lr=config['lr'])
 
-    if config["model_type"] in ["MLM", "SimCSE"]:
+    if config["watch_metrics"] == "loss":
         earlystopping = EarlyStopping(patience=config["early_stopping_patience"], verbose=True, mode="min")
         scheduler = ReduceLROnPlateau(optimizer, 'min', factor=config["lr_scheduler_factor"], 
                                       patience=config["lr_scheduler_patience"], verbose=True)
