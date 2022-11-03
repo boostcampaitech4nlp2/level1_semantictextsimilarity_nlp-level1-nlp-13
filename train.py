@@ -128,6 +128,8 @@ def main(config):
                 earlystopping(val_score)
                 scheduler.step(val_score)
             if earlystopping.best_epoch:
+                if config["model_type"] == "NLI":
+                    torch.save(model.bert.state_dict(), config["model_save_path"].replace(".pt", "_fullNLI.pt"))
                 torch.save(model.state_dict(), config["model_save_path"])
                 print("model saved to ", config["model_save_path"])
                 if not config["test_mode"]:
