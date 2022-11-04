@@ -1,101 +1,62 @@
+from models import SBERT_base_Model, BERT_base_Model, BERT_base_NLI_Model
+from datasets import KorSTSDatasets, Collate_fn, KorSTSDatasets_for_BERT, KorNLIDatasets
+from utils import test_step
+
 from torch.utils.data import DataLoader
-import torch.nn as nn
 import torch
-from torch.optim import Adam
-import wandb
+import torch.nn as nn
 import yaml
 import argparse
 from tqdm import tqdm
 import numpy as np
-import os
-from set_seed import set_seed
-from transformers import AutoTokenizer
-import torchmetrics
 import pandas as pd
 
-from models import SBERT_base_Model, BERT_base_Model
-from datasets import KorSTSDatasets, Collate_fn, bucket_pair_indices, KorSTSDatasets_for_BERT
 
+Datasets = {"SBERT": KorSTSDatasets, "BERT": KorSTSDatasets_for_BERT, "BERT_NLI": KorNLIDatasets}
+Models = {"SBERT": SBERT_base_Model, "BERT": BERT_base_Model, "BERT_NLI": BERT_base_NLI_Model}
 
-if __name__ == '__main__':
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    device = torch.device(device)
+def main(config):
+    device = torch.device("cuda") if torch.cuda.is_available else torch.device("cpu")
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--model_name', default='klue/roberta-large', type=str)
-    parser.add_argument('--model_type', default='BERT', type=str)
-    parser.add_argument('--model_path', default='results/klue-roberta-large2.pt', type=str)
-    parser.add_argument('--valid_path', default='NLP_dataset/han_processed_dev.csv', type=str)
-    parser.add_argument('--test_path', default='NLP_dataset/han_processed_test.csv', type=str)
-    parser.add_argument('--stopword',default=False)
-    args = parser.parse_args()
+    print("prepare datasets")
+    datasets = Datasets[config["model_type"]](config["test_csv"], config["base_model"])
 
-    test_datasets = KorSTSDatasets_for_BERT(args.test_path, args.model_name, args.stopword)
-    valid_datasets = KorSTSDatasets_for_BERT(args.valid_path, args.model_name, args.stopword)
-    collate_fn = Collate_fn(test_datasets.pad_id, args.model_name)
+    collate_fn = Collate_fn(datasets.pad_id, config["model_type"])
 
-    test_loader = DataLoader(
-        test_datasets, 
+    data_loader = DataLoader(
+        datasets,
         collate_fn=collate_fn,
-        batch_size=64,
+        batch_size=config["batch_size"]
     )
-    valid_loader = DataLoader(
-        valid_datasets,
-        collate_fn=collate_fn,
-        batch_size=64,
-    )
-    model = BERT_base_Model(args.model_name)
-    model.load_state_dict(torch.load(args.model_path))
-    print("weights loaded from", args.model_path)
+
+    print("load model...")
+    model = Models[config["model_type"]](config["base_model"], config["dropout_prob"])
+
+    model.load_state_dict(torch.load(config["model_load_path"]))
+    print("model loaded from", config["model_load_path"])
+    
     model.to(device)
-    val_predictions = []
-    val_labels = []
-    test_predictions = []
+
+    model.eval()
+
+    preds = []
+
     with torch.no_grad():
-        model.eval()
-        for i, data in enumerate(tqdm(valid_loader)):
-            if args.model_type == "SBERT":
-                s1, s2, label, aux = data
-                s1 = s1.to(device)
-                s2 = s2.to(device)
-                label = label.to(device)
-                aux = aux.to(device)
-                logits = model(s1, s2, aux)
-            else:
-                s1, label, aux = data
-                s1 = s1.to(device)
-                label = label.to(device)
-                aux = aux.to(device)
-                logits = model(s1, aux)
-                logits = logits.squeeze(-1)
-            for logit in logits.to(torch.device("cpu")).detach():
-                val_predictions.append(logit)
-            for lab in label.to(torch.device("cpu")).detach(): 
-                val_labels.append(lab)
+        for data in tqdm(data_loader):
+            pred = test_step(data, config["model_type"], device, model)
+            pred = pred.to(torch.device("cpu")).detach().numpy().flatten()
+            preds += list(pred)
 
-        for i, data in enumerate(tqdm(test_loader)):
-            if args.model_type == "SBERT":
-                s1, s2, label, aux = data
-                s1 = s1.to(device)
-                s2 = s2.to(device)
-                aux = aux.to(device)
-                logits = model(s1, s2, aux)
-            else:
-                s1, label, aux = data
-                s1 = s1.to(device)
-                aux = aux.to(device)
-                logits = model(s1, aux)
-                logits = logits.squeeze(-1)
-            for logit in logits.to(torch.device("cpu")).detach():
-                test_predictions.append(logit)
+    output = pd.read_csv("NLP_dataset/sample_submission.csv")
+    preds = [round(np.clip(p, 0, 5), 1) for p in preds]
+    output['target'] = preds
+    output.to_csv("output.csv", index=False)
 
-    # output 형식을 불러와서 예측된 결과로 바꿔주고, output.csv로 출력합니다.
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Training SBERT.')
+    parser.add_argument("--conf", type=str, default="sbert_config.yaml", help="config file path(.yaml)")
+    args = parser.parse_args()
+    with open(args.conf, "r") as f:
+        config = yaml.load(f, Loader=yaml.Loader)
 
-    pearson = torchmetrics.functional.pearson_corrcoef(torch.tensor(val_predictions), torch.tensor(val_labels))
-    print("valid pearson = ", pearson)
-    test_predictions = list(round(float(i), 1) for i in test_predictions)
-    test_predictions = np.clip(test_predictions, 0, 5)
-    output = pd.read_csv('NLP_dataset/sample_submission.csv')
-    output['target'] = test_predictions
-    output.to_csv('output.csv', index=False)
- 
+    main(config)

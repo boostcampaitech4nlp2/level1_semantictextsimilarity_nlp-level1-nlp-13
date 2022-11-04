@@ -3,109 +3,146 @@ import torch
 import numpy as np
 import pandas as pd
 from torch.nn.utils.rnn import pad_sequence
-from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 
 from collections import defaultdict
 from typing import List, Tuple
 import random
 
+from .data_processing import stopword_processing
+
 
 class KorSTSDatasets(Dataset):
     def __init__(self, dir, model_name, stopword=False):
         super(KorSTSDatasets, self).__init__()
-        tsv = pd.read_csv(dir)
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.tsv = pd.read_csv(dir)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.s1 = [self.tokenizer.encode(s1) for s1 in self.tsv["sentence_1"]]
+        self.s2 = [self.tokenizer.encode(s2) for s2 in self.tsv["sentence_2"]]
+        if "label" in self.tsv.keys():
+            self.y = self.tsv["label"]
+        else:
+            self.y = None
+        self.rtt, self.source = self.set_eda()
+
+        self.pad_id = self.tokenizer.pad_token_id
+        self.sep_id = self.tokenizer.sep_token_id
+        self.mask_id = self.tokenizer.mask_token_id
+
         #read stopwords
         if stopword:
             stopwords = []
-            f = open('./stopwords_ver2.txt')
-            lines = f.readlines()
-            for line in lines:
-                if '\n' in line:
-                    stopwords.append(line[:-1])
-
-            s1s = []
-            s2s = []
-
-            for s1 in tsv["sentence_1"]:
-                sentence_tokens = []
-                for word in tokenizer.tokenize(s1):
-                    tmp_word = word
-                    if "##" in word:
-                        tmp_word = word.replace('##', '')
-                    if tmp_word not in stopwords:
-                        sentence_tokens.append(word)
-                s1s.append(tokenizer.decode(tokenizer.convert_tokens_to_ids(sentence_tokens)))
-            for s2 in tsv["sentence_2"]:
-                sentence_tokens = []
-                for word in tokenizer.tokenize(s2):
-                    tmp_word = word
-                    if "##" in word:
-                        tmp_word = word.replace('##', '')
-                    if tmp_word not in stopwords:
-                        sentence_tokens.append(word)
-                s2s.append(tokenizer.decode(tokenizer.convert_tokens_to_ids(sentence_tokens)))
-        #read stopwords end
-            self.s1 = [tokenizer.encode(s1) for s1 in s1s]
-            self.s2 = [tokenizer.encode(s2) for s2 in s2s]
-        else:
-            self.s1 = [tokenizer.encode(s1) for s1 in tsv['sentence_1']]
-            self.s2 = [tokenizer.encode(s2) for s2 in tsv['sentence_2']]
-        rtt_filter = tsv['source'].str.contains('rtt') 
-        self.rtt = pd.Series([0] * len(tsv))
-        self.rtt[rtt_filter] = 1
-        
-        nsmc_filter = tsv['source'].str.contains('nsmc')    
-        petition_filter = tsv['source'].str.contains('petition') 
-        slack_filter = tsv['source'].str.contains('slack') 
-        self.source = pd.Series([0] * len(tsv))
-        self.source[nsmc_filter] = 0
-        self.source[petition_filter] = 1
-        self.source[slack_filter] = 2
-        
-        try:
-            self.y = tsv["label"]
-        except:
-            self.y = [0 for _ in range(len(self.s1))]
-        self.pad_id = tokenizer.pad_token_id
-        self.sep_id = tokenizer.sep_token_id
+            with open("./stopwords_ver2.txt", "r") as f:
+                stopwords = [line.replace("\n", "") for line in f.readlines()]
+            s1s, s2s = stopword_processing(self.tsv, stopwords, self.tokenizer)
+            self.s1 = [self.tokenizer.encode(s1) for s1 in s1s]
+            self.s2 = [self.tokenizer.encode(s2) for s2 in s2s]
 
     def __len__(self):
-        return len(self.y)
+        return len(self.s1)
 
     def __getitem__(self, idx):
         data = torch.IntTensor(self.s1[idx]), torch.IntTensor(self.s2[idx])
-        # cosine similarity의 범위 [-1. ~ 1.] 사이 값으로 정규화 필요.
-        # label = float(self.y[idx]) * 0.4 - 1
-        label = float(self.y[idx])
+        if "label" in self.tsv.keys():
+            label = float(self.y[idx])/5
+        else:
+            label = None
+            
+        aux = self.get_aux(idx)
         
-        # torch.cat으로 aux만들기 위해 1차원 텐서로 변환
+        return data, label, aux
+    
+    def set_eda(self):
+        rtt_filter = self.tsv['source'].str.contains('rtt')
+        rtt = pd.Series([0] * len(self.tsv))
+        rtt[rtt_filter] = 1
+        
+        nsmc_filter = self.tsv['source'].str.contains('nsmc')    
+        petition_filter = self.tsv['source'].str.contains('petition') 
+        slack_filter = self.tsv['source'].str.contains('slack')
+        source = pd.Series([0] * len(self.tsv))
+        source[nsmc_filter] = 0
+        source[petition_filter] = 1
+        source[slack_filter] = 2
+        
+        return rtt, source
+    
+    def get_aux(self, idx):
         rtt = torch.tensor([self.rtt[idx]], dtype=torch.long)
         source = torch.tensor(self.source[idx], dtype=torch.long)
         source = torch.nn.functional.one_hot(source, 3)
-        # source + rtt 
         aux = torch.cat([source, rtt])
+        return aux
         
-        return data, label, aux
 
 class KorSTSDatasets_for_BERT(KorSTSDatasets):
-    def __init__(self, dir, model_name, stopword):
+    def __init__(self, dir, model_name, stopword=False):
         super(KorSTSDatasets_for_BERT, self).__init__(dir, model_name, stopword)
 
     def __getitem__(self, idx):
         data = self.s1[idx][:-1] + [self.sep_id] + self.s2[idx][1:]
         data = torch.IntTensor(data)
-        label = float(self.y[idx])
-        
-        # torch.cat으로 aux만들기 위해 1차원 텐서로 변환
-        rtt = torch.tensor([self.rtt[idx]], dtype=torch.long)
-        source = torch.tensor(self.source[idx], dtype=torch.long)
-        source = torch.nn.functional.one_hot(source, 3)
-        # source + rtt 
-        aux = torch.cat([source, rtt])
-        
+        if "label" in self.tsv.keys():
+            label = float(self.y[idx])
+        else:
+            label = None
+            
+        aux = self.get_aux(idx)
+
         return data, label, aux
+
+class KorNLIDatasets(KorSTSDatasets):
+    def __init__(self, dir, model_name, stopword=False):
+        super(KorNLIDatasets, self).__init__(dir, model_name, stopword)
+
+    def __getitem__(self, idx):
+        data = self.s1[idx][:-1] + [self.sep_id] + self.s2[idx][1:]
+        data = torch.IntTensor(data)
+        if "label" in self.tsv.keys():
+            label = 1 if self.y[idx] > 2.5 else 0
+        else:
+            label = None
+            
+        aux = self.get_aux(idx)
+
+        return data, label, aux
+
+class KorSTSDatasets_for_MLM(KorSTSDatasets):
+    def __init__(self, dir, model_name, stopword=False):
+        super(KorSTSDatasets_for_MLM, self).__init__(dir, model_name, stopword)
+        self.sentences = self.s1 + self.s2
+
+    def __getitem__(self, idx):
+        sentence = self.sentences[idx]
+        sentence, label = self.masking(sentence)
+        
+        return sentence, label
+        
+    def masking(self, sentence):
+        label = torch.zeros(len(sentence)).int()
+        for i, s in enumerate(sentence):
+            masking = random.random()
+            if masking < 0.15:
+                label[i] = sentence[i]
+                masking /= 0.15
+                if masking < 0.8:
+                    sentence[i] = self.mask_id
+                elif masking < 0.9:
+                    sentence[i] = random.randrange(self.tokenizer.vocab_size)
+                else:
+                    sentence[i] = sentence[i]
+        sentence = torch.IntTensor(sentence)
+        label = torch.IntTensor(label)
+
+        return sentence, label
+    
+class KorSTSDatasets_for_SimCSE(KorSTSDatasets):
+    def __init__(self, dir, model_name, stopword=False):
+        super(KorSTSDatasets_for_SimCSE, self).__init__(dir, model_name, stopword)
+        self.sentences = self.s1 + self.s2
+        
+    def __getitem__(self, idx):
+        return torch.IntTensor(self.sentences[idx])
 
 class Collate_fn(object):
     def __init__(self, pad_id=0, model_type="SBERT"):
@@ -129,8 +166,11 @@ class Collate_fn(object):
                 
             s1_batch = pad_sequence(s1_batches, batch_first=True, padding_value=self.pad_id)
             s2_batch = pad_sequence(s2_batches, batch_first=True, padding_value=self.pad_id)
-            return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels), torch.stack(auxes, 0)
-        else:
+            if label != None:
+                return s1_batch.long(), s2_batch.long(), torch.FloatTensor(labels), torch.stack(auxes, 0)
+            else:
+                return s1_batch.long(), s2_batch.long(), None
+        elif self.model_type in ["BERT", "BERT_NLI"]:
             s1 = []
             labels = []
             auxes = []
@@ -139,10 +179,28 @@ class Collate_fn(object):
                 s1.append(data)
                 labels.append(label)
                 auxes.append(aux)
-                
             s1_batch = pad_sequence(s1, batch_first=True, padding_value=self.pad_id)
-            return s1_batch.long(), torch.FloatTensor(labels), torch.stack(auxes, 0)
-
+            if label != None:
+                if self.model_type == "BERT":
+                    return s1_batch.long(), torch.FloatTensor(labels), torch.stack(auxes, 0)
+                return s1_batch.long(), torch.LongTensor(labels), torch.stack(auxes, 0)
+            else:
+                return s1_batch.long(), None
+        elif self.model_type == "MLM":
+            inputs = []
+            labels = []
+            for b in batch:
+                x, y = b
+                inputs.append(x)
+                labels.append(y)
+            inputs = pad_sequence(inputs, batch_first=True, padding_value=self.pad_id)
+            labels = pad_sequence(labels, batch_first=True, padding_value=self.pad_id)
+            return inputs.long(), labels.long()
+        elif self.model_type == "SimCSE":
+            inputs = [b for b in batch]
+            labels = torch.arange(len(inputs))
+            inputs = pad_sequence(inputs, batch_first=True, padding_value=self.pad_id)
+            return inputs.long(), labels.long()
 
 def bucket_pair_indices(
     sentence_length: List[Tuple[int, int]],
