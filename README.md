@@ -3,33 +3,33 @@
 # 프로젝트 구조
 괄호가 쳐져있는 폴더/파일은 데이터 유출 방지를 위해 github에서는 제외되었습니다.
 ```text
--- EDA -- __init__.py
- |      └ outputEDA_final.ipynb
- |      └ output_analysis.py
+-- EDA -- __init__.py               # 입력 데이터 및 결과 분석을 위한 소스 폴더
+ |      └ outputEDA_final.ipynb     # output_analysis.py로 출력된 csv 파일을 정성 분석하는 ipynb.
+ |      └ output_analysis.py        # 매 validation epoch마다 예측 결과 포함한 입력값을 csv로 출력.
  | 
- └ criterion -- __init__.py 
+ └ criterion -- __init__.py         # loss 함수 정의
  | 
- └ datasets -- __init__.py
- |           └ data_processing.py
- |           └ datasets.py
+ └ datasets -- __init__.py          # 데이터셋 관련 소스 폴더
+ |           └ data_processing.py   # 문법 교정, 불용어 처리 등 입력 데이터 필터링 코드
+ |           └ datasets.py          # 커스텀 pytorch Dataset class 정의. 기타 collate_fn 및 burketing 기능 제공
  | 
- └ models -- __init__.py
- |        └ auto_models.py
+ └ models -- __init__.py       # 모델 관련 소스 폴더
+ |        └ auto_models.py     # huggingface의 transformers 모듈 기반, 커스텀 automodel 모델 정의
  | 
- └ utils -- __init__.py
- |        └ Earlystopping.py
- |        └ trainer.py
- | 
- └ (NLP_dataset)
- └ .gitignore
+ └ utils -- __init__.py        # 기타 유틸 / 학습용 소스 폴더
+ |        └ Earlystopping.py   # 커스텀 earlystopping 코드 정의 
+ |        └ trainer.py         # train, validation 소스 코드 정의
+ |  
+ └ (NLP_dataset)  # 입력 데이터를 포함하는 폴더
+ └ .gitignore 
  └ README.md
- └ final_ensemble_infer.ipynb 
- └ hyper_tune_train.py
- └ inference.py
- └ sbert_config.yaml
- └ set_seed.py
- └ stopwords_ver2.txt
- └ train.py
+ └ final_ensemble_infer.ipynb  # output_analysis.py로 얻은 csv파일(validation 용) 또는 output.csv(test 용)로 앙상블을 하기 위한 코드
+ └ hyper_tune_train.py         # sweep을 이용한 하이퍼파라미터 튜닝용 코드
+ └ inference.py                # test dataset의 추론을 위한 실행 코드.  output.csv를 생성.
+ └ sbert_config.yaml           # wandb 실험 세팅 파일.
+ └ set_seed.py                 # 실험 재현을 위한 seed 통합 설정 코드
+ └ stopwords_ver2.txt          # 불용어 리스트 파일
+ └ train.py                    # 학습을 위한 실행 코드
 ```
 # PR 방법
 ## 브랜치 종류
