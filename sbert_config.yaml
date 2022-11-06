@@ -1,0 +1,28 @@
+test_mode: True
+
+base_model: klue/roberta-large
+model_type: BERT # SBERT, BERT, BERT_NLI, MLM
+batch_size: 64
+epochs: 13
+early_stopping_patience: 6
+lr_scheduler_patience: 3
+lr_scheduler_factor: 0.2
+lr: 1.0e-5
+dropout_prob : 0.4
+loss:  MSE #MAE, BCE, CE, nMSE, wMSE
+
+#wMSE
+lw_ref: 2.5
+lw_weight: 3
+lw_bias: 0.25
+
+model_load_path: results/ensemble/nMSEmecab_rr3rr.pt
+model_save_path: results/ensemble/wrMSE_tt2tt.pt
+
+train_csv: NLP_dataset/aug_sr_mecab_train.csv
+valid_csv: NLP_dataset/han_processed_dev.csv
+test_csv: NLP_dataset/han_processed_test.csv
+stopword: False
+
+log_name: roberta-large_wrMSE_2.5
+notes: wMSE 앙상블 테스트(2.5)
