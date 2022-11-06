@@ -2,18 +2,24 @@
 
 # 프로젝트 구조
 괄호가 쳐져있는 폴더/파일은 데이터 유출 방지를 위해 github에서는 제외되었습니다.
+```text
 -- EDA -- __init__.py
  |      └ outputEDA_final.ipynb
  |      └ output_analysis.py
+ | 
  └ criterion -- __init__.py 
+ | 
  └ datasets -- __init__.py
  |           └ data_processing.py
  |           └ datasets.py
+ | 
  └ models -- __init__.py
  |        └ auto_models.py
+ | 
  └ utils -- __init__.py
  |        └ Earlystopping.py
  |        └ trainer.py
+ | 
  └ (NLP_dataset)
  └ .gitignore
  └ README.md
@@ -24,7 +30,7 @@
  └ set_seed.py
  └ stopwords_ver2.txt
  └ train.py
- 
+```
 # PR 방법
 ## 브랜치 종류
 (프로젝트가 종료되었으므로, main 브랜치 외에 브랜치들은 제거하였습니다.)     
